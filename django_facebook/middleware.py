@@ -138,14 +138,18 @@ class FacebookMiddleware(object):
         are ephemeral and must be revalidated on every request.
 
         """
-        fb_user = self.get_fb_user(request)
-        request.facebook = DjangoFacebook(fb_user) if fb_user else None
+        if not hasattr(request, 'facebook'):
+            request.facebook = None
 
-        if fb_user and request.user.is_anonymous():
-            user = auth.authenticate(fb_uid=fb_user['uid'],
-                                     fb_graphtoken=fb_user['access_token'])
-            if user:
-                user.last_login = datetime.datetime.now()
-                user.save()
-                request.user = user
+        if request.user.is_anonymous():
+            fb_user = self.get_fb_user(request)
+
+            if fb_user:
+                request.facebook = DjangoFacebook(fb_user)
+                user = auth.authenticate(fb_uid=fb_user['uid'],
+                                         fb_graphtoken=fb_user['access_token'])
+                if user:
+                    user.last_login = datetime.datetime.now()
+                    user.save()
+                    request.user = user
         return None
