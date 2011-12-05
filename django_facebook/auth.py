@@ -1,11 +1,104 @@
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.auth.backends import ModelBackend
+from django.contrib.auth.signals import user_logged_in
+from django.contrib.auth import SESSION_KEY, BACKEND_SESSION_KEY
+
 import facebook
+
+from django_facebook.utils import get_fb_cookie_data
+
+
+def get_facebook_user(request):
+    """
+    Tries to get the facebook user from either de fsbr_ cookie or a canvas
+    request.
+
+    Return a dict containing the facebook user details, if found.
+
+    The dict contains at least the auth method and uid, it may also contain
+    the access_token and any other info made available by the authentication
+    method.
+    """
+
+    def get_fb_user_cookie(self, request):
+        """Get the user_id from the fbsr cookie."""
+        data = get_fb_cookie_data(request)
+        if not data.get('user_id'):
+            return None
+
+        fb_user = dict(uid=data['user_id'],
+                       access_token='',
+                       method='cookie')
+        return fb_user
+
+    def get_fb_user_canvas(self, request):
+        """Attempt to find a user using a signed_request (canvas)."""
+        fb_user = None
+        if request.POST.get('signed_request'):
+            signed_request = request.POST["signed_request"]
+            data = facebook.parse_signed_request(signed_request,
+                                                 settings.FACEBOOK_SECRET_KEY)
+            if data and data.get('user_id'):
+                fb_user = data['user']
+                fb_user['method'] = 'canvas'
+                fb_user['uid'] = data['user_id']
+                fb_user['access_token'] = data['oauth_token']
+        return fb_user
+
+
+    fb_user = {}
+    functions = [get_fb_user_cookie, get_fb_user_canvas]
+    for func in functions:
+        fb_user = func(request)
+        if fb_user:
+            break
+
+    return fb_user or None
+
+
+def login(request, user):
+    """
+    Persist the facebook user_id and the backend in the request. This way a
+    user doesn't have to reauthenticate on every request.
+    """
+    if user is None:
+        user = request.user
+    if SESSION_KEY in request.session:
+        if request.session[SESSION_KEY] != user.username:
+            # To avoid reusing another user's session, create a new, empty
+            # session if the existing session corresponds to a different
+            # authenticated user.
+            request.session.flush()
+    else:
+        request.session.cycle_key()
+    request.session[SESSION_KEY] = user.username
+    request.session[BACKEND_SESSION_KEY] = user.backend
+    if hasattr(request, 'user'):
+        request.user = user
+    user_logged_in.send(sender=user.__class__, request=request, user=user)
+
+
+class FacebookModelBackend(ModelBackend):
+
+    def authenticate(self, request=None):
+        if request:
+            user_data = get_facebook_user(request)
+            if user_data:
+                user = self.get_user(user_data['user_id'])
+                return user
+        return None
+
+    def get_user(self, user_id):
+        user, created = User.objects.get_or_create(
+            username=user_id)
+        # TODO profile callback on created
+        return user
 
 
 class FacebookBackend(ModelBackend):
     """Authenticate a facebook user."""
+
     def authenticate(self, fb_uid=None, fb_graphtoken=None):
         """
         If we receive a facebook uid then the cookie has already been
@@ -22,13 +115,12 @@ class FacebookProfileBackend(ModelBackend):
     """
     Authenticate a facebook user and autopopulate facebook data into the
     user's profile.
-
     """
+
     def authenticate(self, fb_uid=None, fb_graphtoken=None):
         """
         If we receive a facebook uid then the cookie has already been
         validated.
-
         """
         if fb_uid and fb_graphtoken:
             user, created = User.objects.get_or_create(username=fb_uid)
