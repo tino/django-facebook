@@ -25,13 +25,13 @@ def canvas_only(function=None):
             # Parse the request and ensure it's valid
             signed_request = request.POST["signed_request"]
             data = facebook.parse_signed_request(signed_request,
-                                                 settings.FACEBOOK_SECRET_KEY)
+                                                 settings.FACEBOOK_APP_SECRET)
             if data is False:
                 return HttpResponseBadRequest('<h1>400 Bad Request</h1>'
                                   '<p>Malformed <em>signed_request</em>.</p>')
 
             # If the user has not authorised redirect them
-            if not data.get('user_id'):
+            if not data.get('uid'):
                 scope = getattr(settings, 'FACEBOOK_PERMS', None)
                 auth_url = facebook.auth_url(settings.FACEBOOK_APP_ID,
                                              settings.FACEBOOK_CANVAS_PAGE,

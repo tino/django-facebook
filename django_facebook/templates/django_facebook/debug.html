@@ -1,3 +1,4 @@
+{% load facebook %}
 <html>
 <head>
 </head>
@@ -5,15 +6,26 @@
 
 <table>
   <tr><td>request.user</td><td>{{ request.user|pprint }}</td></tr>
-  <tr><td>request.facebook.uid</td><td>{{ request.facebook.uid }}</td></tr>
+  <tr><td>request.facebook.user_id</td><td>{{ request.facebook.user_id }}</td></tr>
   <tr><td>request.COOKIES</td><td><pre>{{ request.COOKIES|pprint }}</pre></td></tr>
   <tr><td>request.POST</td><td><pre>{{ request.POST|pprint }}</pre></td></tr>
   <tr><td>FB.getLoginStatus</td><td><span id="login-status">No fb user found</span></td></tr>
 </table>
 
-<fb:login-button autologoutlink="true"></fb:login-button>
+<div>
+  <h1>Client side flow</h1>
+  <fb:login-button autologoutlink="true"></fb:login-button>
+</div>
 
-{% load facebook %}
+<div>
+  <h1>Server side flow</h1>
+  {% if request.user.is_authenticated %}
+    <a href="{% url django_facebook_logout %}">Log out</a>
+  {% else %}
+    <a href="{% facebook_login_url request %}">Log in</a>
+  {% endif %}
+</div>
+
 {% facebook_init %}
   var update = document.getElementById('login-status');
 

@@ -6,16 +6,21 @@ from django.contrib.auth import BACKEND_SESSION_KEY
 import facebook
 
 from django_facebook.auth import login
-from django_facebook.utils import get_access_token, get_fb_cookie_data
+from django_facebook.utils import get_access_token, is_fb_logged_in
 
+auth = facebook.Auth(settings.FACEBOOK_APP_ID,
+    settings.FACEBOOK_APP_SECRET, settings.FACEBOOK_REDIRECT_URI)
 
 class FacebookAccessor(object):
     """ Simple accessor object for the Facebook user. """
 
     def __init__(self, request):
-        self.uid = request.user.username
-        access_token = get_access_token(request)
-        self.graph = facebook.GraphAPI(access_token)
+        if is_fb_logged_in(request):
+            self.user_id = request.user.username
+        # lazy acces token, if if no user is logged is
+        self.access_token = get_access_token(request)
+        self.auth = auth
+        self.graph = facebook.GraphAPI(self.access_token)
 
 
 class FacebookLoginMiddleware(object):
@@ -30,11 +35,11 @@ class FacebookLoginMiddleware(object):
     authentication backend to create the user if it does not exist.
 
     If you do not want to persist the facebook login, also enable
-    FacebookLogOutMiddleware so that if they log out via fb:login-button they
-    are also logged out of Django.
+    FacebookLogOutMiddleware so that if they log out via a fb:login-button
+    they are also logged out of Django.
 
-    We also want to allow people to log in with other backends, so we only log
-    someone in if their not already logged in.
+    We also allow people to log in with other backends, so we only log someone
+    in if their not already logged in.
     """
 
     def process_request(self, request):
@@ -74,7 +79,16 @@ class FacebookLogOutMiddleware(object):
         if request.user.is_authenticated() and request.session.get(
                 BACKEND_SESSION_KEY) == \
                     'django_facebook.auth.FacebookModelBackend':
-            cookie_data = get_fb_cookie_data(request)
+            try:
+                cookie_data = auth.get_user_from_cookie(request.COOKIES)
+            except facebook.AuthError:
+                # TODO Log this
+                return
+
+            if not cookie_data:
+               logout(request)
+               return
+
             if not cookie_data.get('user_id') == request.user.username:
                 logout(request)
 
@@ -86,16 +100,13 @@ class FacebookHelperMiddleware(object):
     """
 
     def process_request(self, request):
-        if request.user.is_authenticated():
-            if request.session.get(BACKEND_SESSION_KEY) == \
-                    'django_facebook.auth.FacebookModelBackend':
-                request.facebook = FacebookAccessor(request)
+        request.facebook = FacebookAccessor(request)
 
 
 class FacebookMiddleware(object):
     """
     This middleware implements the basic behaviour:
-    
+
     - Log someone in if we can authenticate them (see ``auth``)
     - Log someone out if we can't authenticate them anymore
     - Add a ``facebook`` attribute to the request with a graph accessor.
@@ -151,9 +162,7 @@ class FacebookDebugTokenMiddleware(object):
     """
 
     def process_request(self, request):
-        user = {
-            'uid': settings.FACEBOOK_DEBUG_UID,
-            'access_token': settings.FACEBOOK_DEBUG_TOKEN,
-        }
         request.facebook = FacebookAccessor(request)
+        request.facebook.user_id = settings.FACEBOOK_DEBUG_UID
+        request.facebook.access_token = settings.FACEBOOK_DEBUG_TOKEN
         return None

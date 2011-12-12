@@ -7,7 +7,8 @@ Simply add ``django_facebook`` to your INSTALLED_APPS and configure
 the following settings:
 
     FACEBOOK_APP_ID = ''
-    FACEBOOK_SECRET_KEY = ''
+    FACEBOOK_APP_SECRET = ''
+    FACEBOOK_REDIRECT_URI = ''
 
     # Optionally set default permissions to request, e.g: ['email', 'user_about_me']
     FACEBOOK_PERMS = []
@@ -80,7 +81,7 @@ To use the middleware, simply add this to your MIDDLEWARE_CLASSES:
 ``FacebookDebugCookieMiddleware`` allows you to set a cookie in your settings
 file and use this to simulate facebook logins offline.
 
-``FacebookDebugTokenMiddleware`` allows you to set a uid and access_token to
+``FacebookDebugTokenMiddleware`` allows you to set a user_id and access_token to
 force facebook graph availability.
 
 ``FacebookDebugCanvasMiddleware`` allows you to set a signed_request to mimic

@@ -1,5 +1,7 @@
 from django import template
 from django.conf import settings
+from django.core.urlresolvers import reverse
+
 register = template.Library()
 
 
@@ -39,3 +41,13 @@ class FacebookNode(template.Node):
 @register.simple_tag
 def facebook_perms():
     return ",".join(getattr(settings, 'FACEBOOK_PERMS', []))
+
+
+@register.simple_tag
+def facebook_login_url(request):
+    login_url = 'https://www.facebook.com/dialog/oauth?' + \
+         'client_id=%s&redirect_uri=%s&scope=%s&'
+    redirect_to = reverse('django_facebook_login')
+    return login_url % (settings.FACEBOOK_APP_ID,
+                        request.build_absolute_uri(redirect_to),
+                        facebook_perms())

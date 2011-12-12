@@ -16,39 +16,43 @@ def get_facebook_user(request):
 
     Return a dict containing the facebook user details, if found.
 
-    The dict contains at least the auth method and uid, it may also contain
+    The dict contains at least the auth method and user_id, it may also contain
     the access_token and any other info made available by the authentication
     method.
     """
 
-    def get_fb_user_cookie(self, request):
+    def get_fb_user_client_side(request):
         """Get the user_id from the fbsr cookie."""
         data = get_fb_cookie_data(request)
-        if not data.get('user_id'):
+        if not data or not data.get('user_id'):
             return None
 
-        fb_user = dict(uid=data['user_id'],
+        fb_user = dict(user_id=data['user_id'],
                        access_token='',
                        method='cookie')
         return fb_user
-
-    def get_fb_user_canvas(self, request):
+        
+    def get_fb_user_canvas(request):
         """Attempt to find a user using a signed_request (canvas)."""
+        # TODO Fix get_fb_user_canvas method, there will not be any uid nor user_id in data
+        # See http://developers.facebook.com/docs/appsonfacebook/tutorial/#auth
+        # for the workings of oauth 2 canvas login
         fb_user = None
         if request.POST.get('signed_request'):
             signed_request = request.POST["signed_request"]
             data = facebook.parse_signed_request(signed_request,
-                                                 settings.FACEBOOK_SECRET_KEY)
+                                                 settings.FACEBOOK_APP_SECRET)
+            
             if data and data.get('user_id'):
                 fb_user = data['user']
                 fb_user['method'] = 'canvas'
-                fb_user['uid'] = data['user_id']
+                fb_user['user_id'] = data['uid']
                 fb_user['access_token'] = data['oauth_token']
         return fb_user
 
 
     fb_user = {}
-    functions = [get_fb_user_cookie, get_fb_user_canvas]
+    functions = [get_fb_user_client_side, get_fb_user_canvas]
     for func in functions:
         fb_user = func(request)
         if fb_user:
@@ -81,12 +85,17 @@ def login(request, user):
 
 class FacebookModelBackend(ModelBackend):
 
-    def authenticate(self, request=None):
+    def authenticate(self, request=None, fb_user_id=None):
         if request:
             user_data = get_facebook_user(request)
             if user_data:
                 user = self.get_user(user_data['user_id'])
                 return user
+        
+        if fb_user_id:
+            user = self.get_user(fb_user_id)
+            return user
+            
         return None
 
     def get_user(self, user_id):
@@ -94,47 +103,3 @@ class FacebookModelBackend(ModelBackend):
             username=user_id)
         # TODO profile callback on created
         return user
-
-
-class FacebookBackend(ModelBackend):
-    """Authenticate a facebook user."""
-
-    def authenticate(self, fb_uid=None, fb_graphtoken=None):
-        """
-        If we receive a facebook uid then the cookie has already been
-        validated.
-
-        """
-        if fb_uid:
-            user, created = User.objects.get_or_create(username=fb_uid)
-            return user
-        return None
-
-
-class FacebookProfileBackend(ModelBackend):
-    """
-    Authenticate a facebook user and autopopulate facebook data into the
-    user's profile.
-    """
-
-    def authenticate(self, fb_uid=None, fb_graphtoken=None):
-        """
-        If we receive a facebook uid then the cookie has already been
-        validated.
-        """
-        if fb_uid and fb_graphtoken:
-            user, created = User.objects.get_or_create(username=fb_uid)
-            if created:
-                # It would be nice to replace this with an asynchronous request
-                graph = facebook.GraphAPI(fb_graphtoken)
-                me = graph.get_object('me')
-                if me:
-                    if me.get('first_name'):
-                        user.first_name = me['first_name']
-                    if me.get('last_name'):
-                        user.last_name = me['last_name']
-                    if me.get('email'):
-                        user.email = me['email']
-                    user.save()
-            return user
-        return None
