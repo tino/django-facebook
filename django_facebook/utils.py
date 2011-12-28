@@ -76,3 +76,18 @@ def is_fb_logged_in(request):
     backendstr = 'django_facebook.auth.FacebookModelBackend'
     return request.user.is_authenticated() and \
         request.session.get(BACKEND_SESSION_KEY) == backendstr
+
+
+class FacebookRequiredMixin(object):
+    """CBV view mixin to display a facebook login template when the user is
+    not logged in.
+    """
+    facebook_required_template = "facebook_required.html"
+    
+    def dispatch(self, request, *args, **kwargs):
+        if not is_fb_logged_in(request):
+            self.template_name = self.facebook_required_template
+            self.request = request
+            self.object = None
+            return self.render_to_response({})
+        return super(FacebookRequiredMixin, self).dispatch(request, *args, **kwargs)
