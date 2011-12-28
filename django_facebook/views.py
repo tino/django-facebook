@@ -21,12 +21,16 @@ def fb_login(request):
     there.
     """
     # TODO error_reason when user denies
+    next = request.GET.get('next')
+    if not next:
+        next = reverse(getattr(settings, 'FACEBOOK_LOGIN_REDIRECT_URL', 'django_facebook_debug'))
+    
     code = request.GET.get('code')
     if not code:
         log.error('Could not log into facebook because no code was present in '
             'the GET parameters')
         # best we can do is redirect to login page again...
-        return HttpResponseRedirect(settings.LOGIN_URL)
+        return HttpResponseRedirect(next)
 
     try:
         scheme = request.is_secure() and 'https' or 'http'
@@ -40,12 +44,11 @@ def fb_login(request):
     except facebook.GraphAPIError, e:
         log.error('Could not log into facebook because: %s' % e)
         # best we can do is redirect to login page again...
-        return HttpResponseRedirect(settings.LOGIN_URL)
+        return HttpResponseRedirect(next)
 
     user = authenticate(fb_user_id=fb_user['id'])
     login(request, user)
-    next = getattr(settings, 'FACEBOOK_LOGIN_REDIRECT_URL', 'django_facebook_debug')
-    return HttpResponseRedirect(reverse(next))
+    return HttpResponseRedirect(next)
 
 
 def fb_logout(request, next=None):

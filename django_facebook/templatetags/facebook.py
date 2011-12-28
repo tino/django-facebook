@@ -1,6 +1,8 @@
+from urllib import quote
+
 from django import template
 from django.conf import settings
-from django.core.urlresolvers import reverse
+from django.core.urlresolvers import reverse, NoReverseMatch
 
 register = template.Library()
 
@@ -44,10 +46,21 @@ def facebook_perms():
 
 
 @register.simple_tag
-def facebook_login_url(request):
+def facebook_login_url(request, redirect_after=None):
+    """
+    Templatetag for rendering the login url for server-sided login.
+    
+    An extra redirect url or urlname can be passed to be redirected to after
+    server-side login has happened.
+    """
     login_url = 'https://www.facebook.com/dialog/oauth?' + \
-         'client_id=%s&redirect_uri=%s&scope=%s&'
+         'client_id=%s&scope=%s&redirect_uri=%s'
     redirect_to = reverse('django_facebook_login')
+    if redirect_after:
+        if redirect_after.startswith('/'):
+            redirect_to += '?next=%s' % quote(redirect_after)
+        else:
+            redirect_to += '?next=%s' % quote(reverse(redirect_after))
     return login_url % (settings.FACEBOOK_APP_ID,
-                        request.build_absolute_uri(redirect_to),
-                        facebook_perms())
+                        facebook_perms(),
+                        request.build_absolute_uri(redirect_to))
