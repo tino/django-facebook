@@ -112,9 +112,9 @@ class FacebookMiddleware(object):
     - Add a ``facebook`` attribute to the request with a graph accessor.
     """
     def process_request(self, request):
+        FacebookHelperMiddleware().process_request(request)
         FacebookLoginMiddleware().process_request(request)
         FacebookLogOutMiddleware().process_request(request)
-        FacebookHelperMiddleware().process_request(request)
 
 
 class FacebookDebugCanvasMiddleware(object):
