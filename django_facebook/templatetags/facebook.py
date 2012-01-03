@@ -28,6 +28,7 @@ class FacebookNode(template.Node):
             raise template.TemplateSyntaxError, "%r tag requires " \
                 "FACEBOOK_APP_ID to be configured." \
                 % token.contents.split()[0]
+        self.channel_url = getattr(settings, 'FACEBOOK_CHANNEL_URL', '')
         self.app_id = app_id
         self.nodelist = nodelist
 
@@ -37,6 +38,7 @@ class FacebookNode(template.Node):
         custom_context = context
         custom_context['code'] = code
         custom_context['app_id'] = self.app_id
+        custom_context['channel_url'] = self.channel_url
         return t.render(context)
 
 

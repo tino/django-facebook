@@ -1,8 +1,14 @@
 <script>
 window.fbAsyncInit = function() {
-  FB.init({appId: {{ app_id }}, status: true, cookie: true, oauth: true,
-           xfbml: true});
-  
+  FB.init({appId: {{ app_id }},
+           status: true, // check login status
+           cookie: true, // enable cookies to allow server to access session,
+           xfbml: true, // enable XFBML and social plugins
+           oauth: true, // enable OAuth 2.0
+           {% if channel_url %}channelUrl: {{ channel_url }} //custom channel{% endif %}
+  });
+
   {{ code|safe }}
 }
 </script>
+
