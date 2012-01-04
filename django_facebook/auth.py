@@ -80,6 +80,8 @@ def login(request, user):
     request.session[BACKEND_SESSION_KEY] = user.backend
     if hasattr(request, 'user'):
         request.user = user
+    if hasattr(request, 'facebook'):
+        request.facebook.user_id = user.username
     user_logged_in.send(sender=user.__class__, request=request, user=user)
 
 
