@@ -43,19 +43,24 @@ def get_fresh_access_token(request):
     code = None
     if 'code' in request.GET:
         code = request.GET['code']
+        no_redirect_uri = False
     elif 'code' in get_fb_cookie_data(request):
         code = get_fb_cookie_data(request)['code']
+        no_redirect_uri = True
 
     if not code:
         raise facebook.AuthError('OAuthException', 'Their is no code to get an'
             'access_token with. Reauthenticate the user')
 
     try:
-        data = auth.get_access_token(code)
+        # freaking facebook doesn't want a redirect_uri is somebody is logged
+        # in throught the client-side...
+        kwargs = {'redirect_uri': ''} if no_redirect_uri else {}
+        data = auth.get_access_token(code, **kwargs)
     except facebook.AuthError:
         raise
 
-    return data
+    return data['access_token'], data['expires']
 
 
 def cache_access_token(request, access_token, expires_in):
