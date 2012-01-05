@@ -3,6 +3,8 @@ import time
 from django.utils.functional import SimpleLazyObject
 from django.conf import settings
 from django.contrib.auth import BACKEND_SESSION_KEY
+from django.core.cache import cache
+
 import facebook
 
 ACCESS_TOKEN_SESSION_KEY = '_fb_access_token'
@@ -10,6 +12,8 @@ ACCESS_TOKEN_EXPIRES_SESSION_KEY = '_fb_access_token_expires'
 
 auth = facebook.Auth(settings.FACEBOOK_APP_ID, settings.FACEBOOK_APP_SECRET,
     settings.FACEBOOK_REDIRECT_URI)
+
+FB_DATA_CACHE_KEY = '_fb_data_%s'
 
 
 def get_access_token(request):
@@ -91,3 +95,9 @@ class FacebookRequiredMixin(object):
             self.object = None
             return self.render_to_response({})
         return super(FacebookRequiredMixin, self).dispatch(request, *args, **kwargs)
+
+def cache_fb_user_data(user_id, data):
+    cache.set(FB_DATA_CACHE_KEY % user_id, data)
+    
+def get_cached_fb_user_data(user_id, default=None):
+    return cache.get(FB_DATA_CACHE_KEY % user_id, default)
