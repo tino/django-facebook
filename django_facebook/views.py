@@ -84,4 +84,6 @@ def fb_logout(request, next=None):
     
     logout(request)
 
-    return HttpResponse(render_to_string('django_facebook/js_logout.html', context))
+    response = HttpResponse(render_to_string('django_facebook/js_logout.html', context))
+    response.delete_cookie('fbsr_%s' % settings.FACEBOOK_APP_ID)
+    return response
