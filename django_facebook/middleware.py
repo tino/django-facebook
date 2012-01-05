@@ -2,11 +2,13 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.contrib.auth import authenticate, logout
 from django.contrib.auth import BACKEND_SESSION_KEY
+from django.core.cache import cache
 
 import facebook
 
 from django_facebook.auth import login
-from django_facebook.utils import get_access_token, is_fb_logged_in
+from django_facebook.utils import (get_access_token, is_fb_logged_in, 
+    FB_DATA_CACHE_KEY)
 
 auth = facebook.Auth(settings.FACEBOOK_APP_ID,
     settings.FACEBOOK_APP_SECRET, settings.FACEBOOK_REDIRECT_URI)
@@ -108,6 +110,22 @@ class FacebookHelperMiddleware(object):
 
     def process_request(self, request):
         request.facebook = FacebookAccessor(request)
+        
+        
+class FacebookCacheMiddleware(object):
+    """
+    This middleware loads tries to load user data from the cache. If found, it
+    populates request.facebook with it.
+    
+    This middleware MUST come after the FacebookHelperMiddleware!
+    """
+    
+    def process_request(self, request):
+        if request.facebook.user_id:
+            fb_data = cache.get(FB_DATA_CACHE_KEY % request.facebook.user_id)
+            if fb_data:
+                for k, v in fb_data.iteritems():
+                    setattr(request.facebook, k, v)
 
 
 class FacebookMiddleware(object):
