@@ -12,7 +12,8 @@ auth = facebook.Auth(settings.FACEBOOK_APP_ID,
     settings.FACEBOOK_APP_SECRET, settings.FACEBOOK_REDIRECT_URI)
 
 class FacebookAccessor(object):
-    """ Simple accessor object for the Facebook user. """
+    """ Simple accessor object for the Facebook user. Non-existing properties 
+    will return None instead of raising a AttributeError."""
 
     def __init__(self, request):
         if is_fb_logged_in(request):
@@ -21,6 +22,9 @@ class FacebookAccessor(object):
         self.access_token = get_access_token(request)
         self.auth = auth
         self.graph = facebook.GraphAPI(self.access_token)
+        
+    def __getattr__(self, name):
+        return None
 
 
 class FacebookLoginMiddleware(object):
