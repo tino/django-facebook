@@ -3,11 +3,13 @@ from django.contrib.auth.models import User
 from django.contrib.auth.backends import ModelBackend
 from django.contrib.auth.signals import user_logged_in
 from django.contrib.auth import SESSION_KEY, BACKEND_SESSION_KEY
+from django.dispatch import Signal
 
 import facebook
 
 from django_facebook.utils import get_fb_cookie_data
 
+facebook_user_created = Signal(providing_args=["user"])
 
 def get_facebook_user(request):
     """
