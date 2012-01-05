@@ -1,4 +1,3 @@
-import facebook
 from functools import update_wrapper, wraps
 from django.contrib.auth import REDIRECT_FIELD_NAME
 from django.http import (HttpResponse,
@@ -8,6 +7,8 @@ from django.utils.decorators import available_attrs
 from django.utils.http import urlquote
 from django.conf import settings
 
+import facebook
+from utils import is_fb_logged_in
 
 def canvas_only(function=None):
     """
@@ -70,7 +71,7 @@ def facebook_required(function=None, redirect_field_name=REDIRECT_FIELD_NAME):
         return decorator
 
     actual_decorator = _passes_test(
-        lambda r: r.facebook,
+        is_fb_logged_in,
         redirect_field_name=redirect_field_name
     )
 
