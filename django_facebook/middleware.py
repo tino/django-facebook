@@ -45,6 +45,8 @@ class FacebookLoginMiddleware(object):
     We also allow people to log in with other backends, so we only log someone
     in if their not already logged in.
     """
+    def __init__(self, force_validate=False):
+        self.force_validate = force_validate
 
     def process_request(self, request):
         # AuthenticationMiddleware is required so that request.user exists.
@@ -56,7 +58,8 @@ class FacebookLoginMiddleware(object):
                 " 'django.contrib.auth.middleware.AuthenticationMiddleware'"
                 " before the FacebookCookieLoginMiddleware class.")
         if request.user.is_anonymous():
-            user = authenticate(request=request)
+            user = authenticate(request=request,
+                                force_validate=self.force_validate)
             if user:
                 login(request, user)
 
