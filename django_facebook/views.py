@@ -46,7 +46,7 @@ def fb_login(request):
         # best we can do is redirect to login page again...
         return HttpResponseRedirect(next)
 
-    user = authenticate(fb_user_id=fb_user['id'])
+    user = authenticate(fb_user_id=fb_user['id'], access_token=access_token)
     login(request, user)
     return HttpResponseRedirect(next)
 

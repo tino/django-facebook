@@ -9,8 +9,11 @@ import facebook
 from django_facebook.utils import get_fb_cookie_data
 from django_facebook.signals import facebook_user_created
 
+auth = facebook.Auth(settings.FACEBOOK_APP_ID,
+    settings.FACEBOOK_APP_SECRET, settings.FACEBOOK_REDIRECT_URI)
 
-def get_facebook_user(request):
+
+def get_facebook_user(request, force_validate=False):
     """
     Tries to get the facebook user from either de fsbr_ cookie or a canvas
     request.
@@ -20,16 +23,20 @@ def get_facebook_user(request):
     The dict contains at least the auth method and user_id, it may also contain
     the access_token and any other info made available by the authentication
     method.
+    
+    If ``force_validate`` is True and the user is being logged in by cookie, a
+    call to facebook will be made to validate the freshness of the cookie.
     """
 
     def get_fb_user_client_side(request):
         """Get the user_id from the fbsr cookie."""
-        data = get_fb_cookie_data(request)
+        data = auth.get_user_from_cookie(request.COOKIES,
+            validate=force_validate)
         if not data or not data.get('user_id'):
             return None
 
         fb_user = dict(user_id=data['user_id'],
-                       access_token='',
+                       access_token=data.get('access_token', ''),
                        method='cookie')
         return fb_user
         
@@ -88,21 +95,29 @@ def login(request, user):
 
 class FacebookModelBackend(ModelBackend):
 
-    def authenticate(self, request=None, fb_user_id=None):
+    def authenticate(self, request=None, fb_user_id=None, access_token=None,
+            force_validate=False):
         if request:
-            user_data = get_facebook_user(request)
+            user_data = get_facebook_user(request, force_validate=force_validate)
             if user_data:
-                user = self.get_user(user_data['user_id'])
+                user = self.get_user(user_data['user_id'], request=request)
                 return user
         
         if fb_user_id:
-            user = self.get_user(fb_user_id)
+            user = self.get_user(fb_user_id, access_token=access_token)
             return user
             
         return None
 
-    def get_user(self, user_id):
+    def get_user(self, user_id, request=None, access_token=None):
         user, created = User.objects.get_or_create(
             username=user_id)
         # TODO profile callback on created
+        if created:
+            kwargs = dict(sender=self, user=user)
+            if request and hasattr(request, 'facebook'):
+                kwargs.update(dict(facebook=request.facebook))
+            if access_token:
+                kwargs.update(dict(access_token=access_token))
+            facebook_user_created.send_robust(**kwargs)
         return user
