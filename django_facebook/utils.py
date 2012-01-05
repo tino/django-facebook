@@ -87,7 +87,7 @@ class FacebookRequiredMixin(object):
     not logged in.
     """
     facebook_required_template = "facebook_required.html"
-    
+
     def dispatch(self, request, *args, **kwargs):
         if not is_fb_logged_in(request):
             self.template_name = self.facebook_required_template

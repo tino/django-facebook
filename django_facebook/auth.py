@@ -34,12 +34,12 @@ def get_facebook_user(request, force_validate=False):
             validate=force_validate)
         if not data or not data.get('user_id'):
             return None
-
+            
         fb_user = dict(user_id=data['user_id'],
                        access_token=data.get('access_token', ''),
                        method='cookie')
         return fb_user
-        
+
     def get_fb_user_canvas(request):
         """Attempt to find a user using a signed_request (canvas)."""
         # TODO Fix get_fb_user_canvas method, there will not be any uid nor user_id in data
@@ -50,7 +50,7 @@ def get_facebook_user(request, force_validate=False):
             signed_request = request.POST["signed_request"]
             data = facebook.parse_signed_request(signed_request,
                                                  settings.FACEBOOK_APP_SECRET)
-            
+
             if data and data.get('user_id'):
                 fb_user = data['user']
                 fb_user['method'] = 'canvas'
@@ -102,17 +102,16 @@ class FacebookModelBackend(ModelBackend):
             if user_data:
                 user = self.get_user(user_data['user_id'], request=request)
                 return user
-        
+
         if fb_user_id:
             user = self.get_user(fb_user_id, access_token=access_token)
             return user
-            
+
         return None
 
     def get_user(self, user_id, request=None, access_token=None):
         user, created = User.objects.get_or_create(
             username=user_id)
-        # TODO profile callback on created
         if created:
             kwargs = dict(sender=self, user=user)
             if request and hasattr(request, 'facebook'):
