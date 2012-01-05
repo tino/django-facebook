@@ -1,8 +1,11 @@
 Facebook integration for your Django website
 =============================================
 
+TODO: Document the server-side login flow, and the difference between both.
+
 Installation:
 ------------
+
 Simply add ``django_facebook`` to your INSTALLED_APPS and configure
 the following settings:
 
@@ -22,8 +25,9 @@ the following settings:
 
 Templates:
 ---------
+
 A few helpers for using the Javascript SDK can be enabled by adding
-this to your base template in the ``<head>`` section:
+this to your base template before other javascript that makes use of facebook:
 
     {% load facebook %}
     {% facebook_init %}
@@ -48,12 +52,6 @@ comma-separated list.
       perms="{% facebook_perms %}"></fb:login-button>
 
 
-A helpful debugging page to view the status of your facebook login can
-be enabled by adding this to your url configuration:
-
-    (r'^facebook_debug/', direct_to_template, {'template':'facebook_debug.html'}),  
-
-
 Once this is in place you are ready to start with the facebook javascript SDK!
 
 This module also provides all of the tools necessary for working with facebook
@@ -62,21 +60,38 @@ on the backend:
 
 Middleware:
 ----------
-This provides seamless access to the Facebook Graph via request object.
 
-If a user accesses your site with:
-- a valid cookie (Javascript SDK), or
-- a valid ``signed_request`` parameter (Facebook Canvas App),
-then your views will have access to request.facebook.graph and you can
-begin querying the graph immediately. For example, to get the users friends:
+There are a couple of different middleware classes that can be enabled to do
+various things.
 
-    def friends(request):
-      if request.facebook:
-        friends = request.facebook.graph.get_connections('me', 'friends')
-        
+There is ``FacebookLoginMiddleware`` to log a user in if a facebook cookie is
+present. As a counter part, there is ``FacebookLogoutMiddleware`` that logs a
+user out when that cookie is not present anymore. For these two middlewares to
+work, you need to add ``'django_facebook.auth.FacebookModelBackend'`` to your
+``AUTHENTICATION_BACKENDS`` setting.
+
+As a helper, there is ``FacebookHelperMiddleware``, that sets a ``facebook``
+object on the request, containing:
+
+- ``user_id``: If the user is logged in, this will be the facebook user id 
+- ``access_token``: A lazy access_token 
+- ``auth``: An instantiation of ``facebook.Auth``, an object to do 
+  authentication stuff with, like getting a new access_token
+- ``graph``: An instantiation of ``facebook.GraphAPI``.
+
+The ``FacebookMiddleware`` activates above three middlewares as a shortcut and
+for backwards compatibility. With it installed you can do:
+
+ def friends(request): if request.facebook.user_id: friends =
+request.facebook.graph.get_connections('me', 'friends')
+
 To use the middleware, simply add this to your MIDDLEWARE_CLASSES:
-    'django_facebook.middleware.FacebookMiddleware'
 
+ 'django_facebook.middleware.FacebookMiddleware'
+
+### Debugging:
+
+For debugging the following middleware classes are available:
 
 ``FacebookDebugCookieMiddleware`` allows you to set a cookie in your settings
 file and use this to simulate facebook logins offline.
@@ -90,24 +105,25 @@ a page being loaded as a canvas inside Facebook.
 
 Authentication:
 --------------
+
 This provides seamless integration with the Django user system.
 
-If a user accesses your site with a valid facebook cookie, a user
-account is automatically created or retrieved based on the facebook UID.
-
-To use the backend, add this to your AUTHENTICATION_BACKENDS:
-    'django_facebook.auth.FacebookBackend'
-
-To automatically populate your User and Profile models with facebook data, use:
-    'django_facebook.auth.FacebookProfileBackend'
+djang_facebook defines one backend that "authenticates" users. The real
+authentication is done through the facebook API of course, so this backend
+only ensures a user exists within our database. If a user doesn't exist, it
+wil be created, and the [django_facebook.auth.facebook_user_created](#signals)
+signal will be fired. Connect to this signal to populate profile data for
+example.
   
 Don't forget to include the default backend if you want to use standard
 logins for users as well:
+
     'django.contrib.auth.backends.ModelBackend'
 
 
-Decorators:
-----------
+Decorators and Mixins:
+---------------------
+
 ``@facebook_required`` is a decorator which ensures the user is currently
 logged in with facebook and has access to the facebook graph. It is a replacement
 for ``@login_required`` if you are not using the facebook authentication backend.
@@ -116,3 +132,39 @@ for ``@login_required`` if you are not using the facebook authentication backend
 a valid ``signed_request`` via Facebook Canvas. If signed_request is not found, the
 decorator will return a HTTP 400. If signed_request is found but the user has not
 authorised, the decorator will redirect the user to authorise.
+
+The ``utils.FacebookRequiredMixin`` is a class-based-view mixin that can be
+used when using CBV's. It needs to come before any other metaclasses otherwise
+it will not work. For example:
+
+    class MyView(FacebookRequiredMixin, django.views.generic.DetailView):
+        # rest of view...
+
+
+Signals:<a id="signals"/>
+-------
+
+django_facebook defines a signal:
+``django_facebook.auth.facebook_user_created``. It is fired when the
+FacebookModelBackend creates a user, and is passed ``user``, being the just
+created user, and ``facebook`` the facebook helper object that you can use to
+interact with facebook (the ``FacebookHelperMiddleware`` needs to be
+installed for this, otherwise the ``facebook`` kwarg will be ``None``).
+
+Asynchronous:
+------------
+
+It is advisable to handle connections with external api's asynchronous with
+the request, so your user don't need to wait if facebook takes a little more
+time then usual. This app is built with that idea in mind, and there only
+makes calls to facebook when necessary. This means that when a facebook cookie
+is present, by default no call to facebook is made to validate that cookie and
+to obtain an access-token.
+
+The ``access_token`` set on the facebook helper object is a 'lazy' access_token.
+This means that the access_token is only obtained or validated at the last
+moment. When the access_token is expired, a new one will be obtained if
+possible.
+
+The access_token is stored in the users session, so django's SessionMiddleware
+needs to be installed.
