@@ -5,7 +5,7 @@ window.fbAsyncInit = function() {
            cookie: true, // enable cookies to allow server to access session,
            xfbml: true, // enable XFBML and social plugins
            oauth: true, // enable OAuth 2.0
-           {% if channel_url %}channelUrl: {{ channel_url }} //custom channel{% endif %}
+           {% if channel_url %}channelUrl: "{{ channel_url }}" //custom channel{% endif %}
   });
 
   {{ code|safe }}
