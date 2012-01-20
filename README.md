@@ -3,6 +3,30 @@ Facebook integration for your Django website
 
 TODO: Document the server-side login flow, and the difference between both.
 
+Requirements
+------------
+
+Some recent version of jQuery. TODO: Document where it's needed and give example
+
+Facebook Login
+---------------
+
+With Facebook there are two ways to log in
+(http://developers.facebook.com/docs/authentication/):
+
+- through the server-side flow
+- through the client-side flow
+
+django_facebook provides methods for both these flows. For completeness and
+things like reducing the number of requests you need to make to FB
+server-sided, you want to be authenticated on both sides. Unfortunately
+facebook per 31 december 2011 deprecated
+(http://developers.facebook.com/blog/post/624/) their cookie that gave us an
+easy way to get the authentication details on the server when somebody was
+logged in on the client side. To overcome this, an ajax post request is made,
+as soon as somebody logs in on the client side, to notify the server and give
+it a change to log someone in.
+
 Installation:
 ------------
 

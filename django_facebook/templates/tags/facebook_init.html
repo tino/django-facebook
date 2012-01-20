@@ -1,4 +1,58 @@
 <script>
+function getCookie(name) {
+  var cookieValue = null;
+  if (document.cookie && document.cookie != '') {
+    var cookies = document.cookie.split(';');
+    for (var i = 0; i < cookies.length; i++) {
+      var cookie = $.trim(cookies[i]);
+      // Does this cookie string begin with the name we want?
+      if (cookie.substring(0, name.length + 1) == (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+function setCookie(name,value,days) {
+  if (days) {
+    var date = new Date();
+    date.setTime(date.getTime()+(days*24*60*60*1000));
+    var expires = "; expires="+date.toGMTString();
+  }
+  else var expires = "";
+  document.cookie = name+"="+value+expires+"; path=/";
+}
+
+// set X-CSRFToken on every xhr request
+$(document).ajaxSend(function(event, xhr, settings) {
+
+    function sameOrigin(url) {
+        // url could be relative or scheme relative or absolute
+        var host = document.location.host; // host + port
+        var protocol = document.location.protocol;
+        var sr_origin = '//' + host;
+        var origin = protocol + sr_origin;
+        // Allow absolute or scheme relative URLs to same origin
+        return (url == origin || url.slice(0, origin.length + 1) == origin + '/') ||
+            (url == sr_origin || url.slice(0, sr_origin.length + 1) == sr_origin + '/') ||
+            // or any other URL that isn't scheme relative or absolute i.e relative.
+            !(/^(\/\/|http:|https:).*/.test(url));
+    }
+    function safeMethod(method) {
+        return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+    }
+
+    if (!safeMethod(settings.type) && sameOrigin(settings.url)) {
+        xhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');
+    }
+});
+
+window.djfb = {}
+{% if request.facebook.user_id %}
+  window.djfb.user_id = '{{ request.facebook.user_id }}';
+{% endif %}
+
 window.fbAsyncInit = function() {
   FB.init({appId: {{ app_id }},
            status: true, // check login status
@@ -7,7 +61,40 @@ window.fbAsyncInit = function() {
            oauth: true, // enable OAuth 2.0
            {% if channel_url %}channelUrl: "{{ channel_url }}" //custom channel{% endif %}
   });
-
+  if(getCookie('djfb_force_logout')) {
+    FB.logout(function(response) {
+      document.cookie = "djfb_force_logout=";
+    });
+  }
+  
+  // Send a POST to the server notifying it somebody logged in, and pass the 
+  // access_token
+  // Also save the access_token to a cookie. In case the POST doesn't make it 
+  // due to page reloading, the server will see the cookie.
+  djfb = window.djfb || {}
+  FB.Event.subscribe('auth.statusChange', function(response) {
+    if (response.status == 'connected') {
+      // Only send post if the server doesn't have this user logged in
+      if (djfb.user_id != response.authResponse.userID) {
+        $.post('{% url djfb_clientside_login %}', 
+              {user_id: response.authResponse.userID,
+               access_token: response.authResponse.accessToken,
+               expires_in: response.authResponse.expiresIn,
+               signed_request: response.authResponse.signedRequest}
+        );
+      }
+      setCookie('djfb_access_token', response.authResponse.accessToken);
+      setCookie('djfb_expires_in', response.authResponse.expiresIn);
+      setCookie('djfb_signed_request', response.authResponse.signedRequest);
+      setCookie('djfb_user_id', response.authResponse.userID);
+    } else {
+      // On logout delete the djfb_ cookies
+      setCookie('djfb_access_token', '');
+      setCookie('djfb_expires_in', '');
+      setCookie('djfb_signed_request', '');
+      setCookie('djfb_user_id', '');
+    }
+  });
   {{ code|safe }}
 }
 </script>

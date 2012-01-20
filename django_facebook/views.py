@@ -3,28 +3,32 @@ import logging
 
 from django.core.urlresolvers import reverse
 from django.contrib.auth import logout, authenticate
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import (HttpResponse, HttpResponseRedirect,
+    HttpResponseNotAllowed, HttpResponseBadRequest)
 from django.conf import settings
 from django.template.loader import render_to_string
 
 import facebook
 
-from .auth import login
-from .utils import cache_access_token
+from .auth import login, FacebookModelBackend
+from .utils import cache_access_token, get_cached_access_token
 
 
 log = logging.getLogger('django_facebook.views')
 
+auth = facebook.Auth(settings.FACEBOOK_APP_ID,
+    settings.FACEBOOK_APP_SECRET, settings.FACEBOOK_REDIRECT_URI)
 
-def fb_login(request):
-    """View that accepts the redirect from Facebook after the user signs in 
+
+def fb_server_login(request):
+    """View that accepts the redirect from Facebook after the user signs in
     there.
     """
     # TODO error_reason when user denies
     next = request.GET.get('next')
     if not next:
-        next = reverse(getattr(settings, 'FACEBOOK_LOGIN_REDIRECT_URL', 'django_facebook_debug'))
-    
+        next = reverse(getattr(settings, 'FACEBOOK_LOGIN_REDIRECT_URL', 'djfb_debug'))
+
     code = request.GET.get('code')
     if not code:
         log.error('Could not log into facebook because no code was present in '
@@ -32,58 +36,87 @@ def fb_login(request):
         # best we can do is redirect to login page again...
         return HttpResponseRedirect(next)
 
+    # authenticate doesn't work here, as it needs the signed request, not
+    # the code. So do the validating here ourselves
     try:
         scheme = request.is_secure() and 'https' or 'http'
-        redirect_uri = '%s://%s%s' % (scheme, request.get_host(), reverse('django_facebook_login'))
-        data = request.facebook.auth.get_access_token(code,
+        redirect_uri = '%s://%s%s' % (scheme, request.get_host(), reverse('djfb_login'))
+        token = request.facebook.auth.get_access_token(code,
             redirect_uri=redirect_uri)
-        access_token, expires = data['access_token'], data['expires']
-        # Set the access_token for further use:
-        cache_access_token(request, access_token, expires)
+        access_token, expires_in = token['access_token'], token['expires']
         fb_user = facebook.GraphAPI(access_token).get_object('me')
     except facebook.GraphAPIError, e:
         log.error('Could not log into facebook because: %s' % e)
         # best we can do is redirect to login page again...
         return HttpResponseRedirect(next)
-
-    user = authenticate(fb_user_id=fb_user['id'], access_token=access_token)
+    
+    # Cache the access_token (normally autenticate does this)
+    cache_access_token(fb_user['id'], access_token, expires_in)
+    
+    user = FacebookModelBackend().get_user(fb_user['id'], access_token)
+    user.backend = 'django_facebook.auth.FacebookModelBackend'
     login(request, user)
-    return HttpResponseRedirect(next)
+    
+    response = HttpResponseRedirect(next)
+    # Set djfb_access_token and djfb_user_id, otherwise the user will be logged
+    # out by our middleware
+    response.set_cookie('djfb_access_token', access_token)
+    response.set_cookie('djfb_user_id', fb_user['id'])
+    
+    return response
+
+
+def fb_client_login(request):
+    """
+    View for the POST request that is made by our javascript on login of the
+    user, so the server and client are in sync concerning login status.
+    """
+    if request.method != "POST":
+        return HttpResponseNotAllowed(['POST'])
+        
+    # Try to bail early if the user_id's still match. This happens if the
+    # window.djfb.user_id was not set properly. Do update the access_token though
+    user_id = request.POST.get('user_id')
+    if user_id and request.user.is_authenticated():
+        if user_id == request.user.username:
+            cache_access_token(user_id,
+                               request.POST['access_token'],
+                               request.POST['expires_in'])
+            return HttpResponse('OK')
+
+    if not 'signed_request' in request.POST:
+        return HttpResponseBadRequest('This view needs the signed_request')
+
+    user = authenticate(signed_request=request.POST['signed_request'],
+                        access_token=request.POST['access_token'],
+                        expires_in=request.POST['expires_in'])
+    if not user:
+        return HttpResponseBadRequest('Could not log the user in with the '
+                                      'given signed_request')
+    login(request, user)
+    log.debug('logged in user through fb_client_login')
+    return HttpResponse('OK')
 
 
 def fb_logout(request, next=None):
-    # def logout_response(*args, **kwargs):
-    #     """We need to delete the cookie otherwise the middleware logs us in 
-    #     again!
-    #     """
-    #     response = HttpResponseRedirect(*args, **kwargs)
-    #     response.delete_cookie('fbsr_%s' % settings.FACEBOOK_APP_ID)
-    #     return response
-    #     
-    # logout(request)
-    # import pdb; pdb.set_trace()
-    # if next is None:
-    #     next = reverse('django_facebook_debug')
-    # if not hasattr(request, 'facebook'):
-    #     # We have no facebook data so we can't log out of facebook
-    #     return logout_response(next)
-    # try:
-    #     access_token = 'adfsd' #str(request.facebook.access_token)
-    # except GraphAPIError:
-    #     return logout_response(next)
-    # logout_url = 'https://www.facebook.com/logout.php?next=%s&access_token=%s'
-    # return logout_response(logout_url % (
-    #     urllib.quote(request.build_absolute_uri(next)),
-    #     # access_token)
-    #     )
-    # )
-    
+    """
+    Logout for the server-sided authentication flow. We can't rely on any js
+    here.
+
+    Upon logout we logout from the django auth system, we also delete any
+    cookies we might have set.
+    """
     if next is None:
-        next = reverse('django_facebook_debug')
-    context = dict(redirect_uri=next, app_id=settings.FACEBOOK_APP_ID)
-    
+        try:
+            next = settings.LOGOUT_REDIRECT_URL
+        except AttributeError:
+            next = reverse('djfb_debug')
+
     logout(request)
 
-    response = HttpResponse(render_to_string('django_facebook/js_logout.html', context))
-    response.delete_cookie('fbsr_%s' % settings.FACEBOOK_APP_ID)
+    response = HttpResponseRedirect(next)
+    response.delete_cookie('djfb_access_token')
+    response.delete_cookie('djfb_expires_in')
+    response.delete_cookie('djfb_signed_request')
+    response.delete_cookie('djfb_user_id')
     return response

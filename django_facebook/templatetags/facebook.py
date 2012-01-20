@@ -14,7 +14,7 @@ def facebook_load():
 
 @register.tag
 def facebook_init(parser, token):
-    nodelist = parser.parse(('endfacebook',))
+    nodelist = parser.parse(('endfacebook_init',))
     parser.delete_first_token()
     return FacebookNode(nodelist)
 
@@ -39,7 +39,7 @@ class FacebookNode(template.Node):
         custom_context['code'] = code
         custom_context['app_id'] = self.app_id
         custom_context['channel_url'] = self.channel_url
-        return t.render(context)
+        return t.render(custom_context)
 
 
 @register.simple_tag
@@ -57,7 +57,7 @@ def facebook_login_url(request, redirect_after=None):
     """
     login_url = 'https://www.facebook.com/dialog/oauth?' + \
          'client_id=%s&scope=%s&redirect_uri=%s'
-    redirect_to = reverse('django_facebook_login')
+    redirect_to = reverse('djfb_login')
     if redirect_after:
         if redirect_after.startswith('/'):
             redirect_to += '?next=%s' % quote(redirect_after)

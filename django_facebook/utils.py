@@ -7,27 +7,24 @@ from django.core.cache import cache
 
 import facebook
 
-ACCESS_TOKEN_SESSION_KEY = '_fb_access_token'
-ACCESS_TOKEN_EXPIRES_SESSION_KEY = '_fb_access_token_expires'
 
 auth = facebook.Auth(settings.FACEBOOK_APP_ID, settings.FACEBOOK_APP_SECRET,
     settings.FACEBOOK_REDIRECT_URI)
 
+FB_ACCESS_TOKEN_CACHE_KEY = '_fb_access_token_%s'
 FB_DATA_CACHE_KEY = '_fb_data_%s'
 
 
-def get_access_token(request):
+def get_lazy_access_token(request):
     def get_lazy():
-        access_token = request.session.get(ACCESS_TOKEN_SESSION_KEY)
-        expires = request.session.get(ACCESS_TOKEN_EXPIRES_SESSION_KEY)
+        if not request.user.is_authenticated():
+            # don't even bother
+            return ''
 
-        # two seconds buffer so we can actually do something with the token
-        if expires < time.time() + 2:
+        access_token = get_cached_access_token(request.user.username)
+        if not access_token:
             access_token, expires_in = get_fresh_access_token(request)
-            request.session[ACCESS_TOKEN_SESSION_KEY] = access_token
-            expires = time.time() + int(expires_in)
-            request.session[ACCESS_TOKEN_EXPIRES_SESSION_KEY] = expires
-
+            cache_access_token(request.user.username, access_token, expires_in)
         return access_token
     return SimpleLazyObject(get_lazy)
 
@@ -44,8 +41,8 @@ def get_fresh_access_token(request):
     if 'code' in request.GET:
         code = request.GET['code']
         no_redirect_uri = False
-    elif 'code' in get_fb_cookie_data(request):
-        code = get_fb_cookie_data(request)['code']
+    elif 'code' in get_signed_request_data(request):
+        code = get_signed_request_data(request)['code']
         no_redirect_uri = True
 
     if not code:
@@ -63,19 +60,16 @@ def get_fresh_access_token(request):
     return data['access_token'], data['expires']
 
 
-def cache_access_token(request, access_token, expires_in):
-    """Cache the access_token in the session"""
-    request.session[ACCESS_TOKEN_SESSION_KEY] = access_token
-    expires = time.time() + int(expires_in)
-    request.session[ACCESS_TOKEN_EXPIRES_SESSION_KEY] = expires
-
-
-def get_fb_cookie_data(request):
-    """Cache parsed cookie data, so we only do it once per request."""
+def get_signed_request_data(request):
+    """
+    Cache parsed signed_request cookie data, so we only do it once per
+    request.
+    """
     if not hasattr(request, '_fb_cookie_data'):
         try:
-            data = auth.get_user_from_cookie(request.COOKIES)
-        except facebook.AuthError:
+            data = auth.parse_signed_request(
+                                    request.COOKIES['djfb_signed_request'])
+        except (KeyError, ValueError, facebook.AuthError):
             data = {}
         request._fb_cookie_data = data
     return request._fb_cookie_data
@@ -101,8 +95,28 @@ class FacebookRequiredMixin(object):
             return self.render_to_response({})
         return super(FacebookRequiredMixin, self).dispatch(request, *args, **kwargs)
 
-def cache_fb_user_data(user_id, data):
-    cache.set(FB_DATA_CACHE_KEY % user_id, data)
-    
+
+def cache_access_token(user_id, access_token, expires_in=3600):
+    """Cache the access_token for a user"""
+    cache.set(FB_ACCESS_TOKEN_CACHE_KEY % user_id, access_token, int(expires_in))
+
+
+def get_cached_access_token(user_id, default=None):
+    return cache.get(FB_ACCESS_TOKEN_CACHE_KEY % user_id, default)
+
+
+def del_cached_access_token(user_id):
+    cache.delete(FB_ACCESS_TOKEN_CACHE_KEY % user_id)
+
+
+def cache_fb_user_data(user_id, data, expires_in=None):
+    if not expires_in:
+        cache.set(FB_DATA_CACHE_KEY % user_id, data)
+    else:
+        cache.set(FB_DATA_CACHE_KEY % user_id, data, int(expires_in))
+
+def del_cached_fb_user_data(user_id):
+    cache.delete(FB_DATA_CACHE_KEY % user_id)
+
 def get_cached_fb_user_data(user_id, default=None):
     return cache.get(FB_DATA_CACHE_KEY % user_id, default)

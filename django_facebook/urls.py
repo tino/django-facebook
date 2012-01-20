@@ -1,11 +1,10 @@
 from django.conf.urls.defaults import *
 from django.views.generic import TemplateView
 
-from views import fb_login, fb_logout
-
-urlpatterns = patterns('',
-    url(r'^login/$', fb_login, name='django_facebook_login'), 
-    url(r'^logout/$', fb_logout, name='django_facebook_logout'), 
+urlpatterns = patterns('django_facebook.views',
+    url(r'^login/$', 'fb_server_login', name='djfb_login'),
+    url(r'^login/client/$', 'fb_client_login', name='djfb_clientside_login'),
+    url(r'^logout/$', 'fb_logout', name='djfb_logout'),
     url(r'^debug/$', TemplateView.as_view(template_name='django_facebook/debug.html'),
-        name='django_facebook_debug'),
+        name='djfb_debug'),
 )
