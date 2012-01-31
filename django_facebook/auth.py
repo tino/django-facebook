@@ -178,7 +178,8 @@ class FacebookModelBackend(ModelBackend):
         usefull, like pre-fetching user data.
         """
         log.debug('FacebookModelBackend.get_user called')
-        user, created = User.objects.get_or_create(username=user_id)
+        user, created = User.objects.get_or_create(username=user_id, 
+            defaults={'password': '!'}) # also set unusable password
         if created:
             log.debug('New user created for facebook account %s' % user_id)
             kwargs = dict(sender=self, user=user, access_token=access_token)
