@@ -7,6 +7,7 @@ from django.core.cache import cache
 
 import facebook
 
+from .auth import logout
 
 auth = facebook.Auth(settings.FACEBOOK_APP_ID, settings.FACEBOOK_APP_SECRET,
     settings.FACEBOOK_REDIRECT_URI)
@@ -23,8 +24,13 @@ def get_lazy_access_token(request):
 
         access_token = get_cached_access_token(request.user.username)
         if not access_token:
-            access_token, expires_in = get_fresh_access_token(request)
-            cache_access_token(request.user.username, access_token, expires_in)
+            try:
+                access_token, expires_in = get_fresh_access_token(request)
+                cache_access_token(request.user.username, access_token, expires_in)
+            except facebook.AuthError:
+                # Not a valid code could be found, so logout
+                logout(request)
+                return ''
         return access_token
     return SimpleLazyObject(get_lazy)
 
