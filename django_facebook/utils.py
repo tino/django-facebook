@@ -1,13 +1,9 @@
-import time
-
 from django.utils.functional import SimpleLazyObject
 from django.conf import settings
 from django.contrib.auth import BACKEND_SESSION_KEY
 from django.core.cache import cache
 
 import facebook
-
-from .auth import logout
 
 auth = facebook.Auth(settings.FACEBOOK_APP_ID, settings.FACEBOOK_APP_SECRET,
     settings.FACEBOOK_REDIRECT_URI)
@@ -17,40 +13,52 @@ FB_DATA_CACHE_KEY = '_fb_data_%s'
 
 
 def get_lazy_access_token(request):
+    code, use_redirect_uri = get_code_from_request(request)
+    fb_id = request.user.username
+    
     def get_lazy():
-        if not request.user.is_authenticated():
-            # don't even bother
-            return ''
-
-        access_token = get_cached_access_token(request.user.username)
+        access_token = get_cached_access_token(fb_id)
+        
         if not access_token:
             try:
-                access_token, expires_in = get_fresh_access_token(request)
-                cache_access_token(request.user.username, access_token, expires_in)
+                access_token, expires_in = get_fresh_access_token(code, use_redirect_uri)
+                cache_access_token(fb_id, access_token, expires_in)
             except facebook.AuthError:
-                # Not a valid code could be found, so logout
-                logout(request)
-                return ''
+                raise
+                
         return access_token
+        
     return SimpleLazyObject(get_lazy)
 
 
-def get_fresh_access_token(request):
+def get_code_from_request(request):
     """
-    To get an access_token, we need a code. We can only get that from the
-    fbsr_ cookie, or from the GET parameters that are returned in the server
-    side flow.
-
-    Raise an AuthError if we can get that code, or can't get an access_token.
+    Fetches the code from either the GET params or the signed_request cookie.
+    
+    Returns the code and wether or not a redirect_uri should be used.
     """
     code = None
+    use_redirect_uri = True
     if 'code' in request.GET:
         code = request.GET['code']
-        no_redirect_uri = False
+        use_redirect_uri = True
     elif 'code' in get_signed_request_data(request):
         code = get_signed_request_data(request)['code']
-        no_redirect_uri = True
-
+        use_redirect_uri = False
+    
+    return code, use_redirect_uri
+    
+    
+def get_fresh_access_token(code, use_redirect_uri=True):
+    """
+    Get a fresh_access_token with the provided code. Raise a
+    facebook.AuthError if we can't.
+    
+    If the user is logged in through the client side, use_redirect_uri should
+    be False.
+    
+    Returns the access_token and the amount of seconds it expires in.
+    """
     if not code:
         raise facebook.AuthError('OAuthException', 'Their is no code to get an'
             'access_token with. Reauthenticate the user')
@@ -58,7 +66,7 @@ def get_fresh_access_token(request):
     try:
         # freaking facebook doesn't want a redirect_uri is somebody is logged
         # in throught the client-side...
-        kwargs = {'redirect_uri': ''} if no_redirect_uri else {}
+        kwargs = {'redirect_uri': ''} if not use_redirect_uri else {}
         data = auth.get_access_token(code, **kwargs)
     except facebook.AuthError:
         raise
