@@ -1,9 +1,10 @@
 from django.conf import settings
 from django.contrib import auth as django_auth
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
 from django.contrib.auth.signals import user_logged_in
 from django.contrib.auth import SESSION_KEY, BACKEND_SESSION_KEY
+User = get_user_model()
 
 import logging
 log = logging.getLogger('django_facebook.auth')
@@ -85,7 +86,7 @@ def login(request, user):
     if user is None:
         user = request.user
     if SESSION_KEY in request.session:
-        if request.session[SESSION_KEY] != user.username:
+        if request.session[SESSION_KEY] != user.get_username():
             # To avoid reusing another user's session, create a new, empty
             # session if the existing session corresponds to a different
             # authenticated user.
@@ -93,13 +94,13 @@ def login(request, user):
     else:
         request.session.cycle_key()
     # save the username (is facebook id) as user id
-    request.session[SESSION_KEY] = user.username
+    request.session[SESSION_KEY] = user.get_username()
     request.session[BACKEND_SESSION_KEY] = user.backend
     if hasattr(request, 'user'):
         request.user = user
     if hasattr(request, 'facebook'):
-        request.facebook.user_id = user.username
-    log.debug('Facebook user %s logged in' % user.username)
+        request.facebook.user_id = user.get_username()
+    log.debug('Facebook user %s logged in' % user.get_username())
     user_logged_in.send(sender=user.__class__, request=request, user=user)
 
 
@@ -108,7 +109,7 @@ def logout(request):
     Logout the user, delete cached data and clear cookies so any auth calls
     coming after don't log the user in again.
     """
-    user_id = request.user.username
+    user_id = request.user.get_username()
     del_cached_fb_user_data(user_id)
     del_cached_access_token(user_id)
     django_auth.logout(request)
@@ -178,8 +179,8 @@ class FacebookModelBackend(ModelBackend):
         usefull, like pre-fetching user data.
         """
         log.debug('FacebookModelBackend.get_user called')
-        user, created = User.objects.get_or_create(username=user_id, 
-            defaults={'password': '!'}) # also set unusable password
+        user, created = User.objects.get_or_create(**{User.USERNAME_FIELD: user_id, 
+            'defaults': {'password': '!'}}) # also set unusable password
         if created:
             log.debug('New user created for facebook account %s' % user_id)
             kwargs = dict(sender=self, user=user, access_token=access_token)

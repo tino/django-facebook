@@ -78,7 +78,7 @@ def fb_client_login(request):
     # window.djfb.user_id was not set properly. Do update the access_token though
     user_id = request.POST.get('user_id')
     if user_id and request.user.is_authenticated():
-        if user_id == request.user.username:
+        if user_id == request.user.get_username():
             cache_access_token(user_id,
                                request.POST['access_token'],
                                request.POST['expires_in'])
