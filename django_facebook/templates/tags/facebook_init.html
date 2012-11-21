@@ -76,7 +76,7 @@ window.fbAsyncInit = function() {
     if (response.status == 'connected') {
       // Only send post if the server doesn't have this user logged in
       if (djfb.user_id != response.authResponse.userID) {
-        $.post('{% url djfb_clientside_login %}', 
+        $.post('{% url "djfb_clientside_login" %}', 
               {user_id: response.authResponse.userID,
                access_token: response.authResponse.accessToken,
                expires_in: response.authResponse.expiresIn,
