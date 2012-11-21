@@ -48,28 +48,32 @@ def get_fb_user_from_request(request, force_validate=False):
                        expires_in=expires_in,
                        method='cookie')
 
-    # get_fb_user_canvas commented out as it interfers with the fb_client_login
-    # view, that accepts a post with a 'signed_request' as well. Wasn't working
-    # anyway, see todo below.
-    # def get_fb_user_canvas(request):
-    #     """Attempt to find a user using a signed_request (canvas)."""
-    #     # TODO Fix get_fb_user_canvas method, there will not be any uid nor user_id in data
-    #     # See http://developers.facebook.com/docs/appsonfacebook/tutorial/#auth
-    #     # for the workings of oauth 2 canvas login
-    #     fb_user = None
-    #     if request.POST.get('signed_request'):
-    #         signed_request = request.POST["signed_request"]
-    #         data = auth.parse_signed_request(signed_request)
-    #
-    #         if data and data.get('user_id'):
-    #             fb_user = data['user']
-    #             fb_user['method'] = 'canvas'
-    #             fb_user['user_id'] = data['uid']
-    #             fb_user['access_token'] = data['oauth_token']
-    #     return fb_user
+    def get_fb_user_canvas(request):
+        """Attempt to find a user using a signed_request (canvas)."""
+        # TODO Fix get_fb_user_canvas method, there will not be any uid nor user_id in data
+        # See http://developers.facebook.com/docs/appsonfacebook/tutorial/#auth
+        # for the workings of oauth 2 canvas login
+        fb_user = None
+        if request.POST.get('signed_request'):
+            signed_request = request.POST['signed_request']
+            try:
+                data = auth.parse_signed_request(signed_request)
+            except ValueError as e:
+                # ValueErrors are raise by facebook.Auth with malformed tokens
+                log.info('Something wrong with signed_request: %s' % e)
+                return None
+    
+            if data and data.get('user_id'):
+                fb_user = data['user']
+                fb_user['method'] = 'canvas'
+                fb_user['user_id'] = data['user_id']
+                fb_user['access_token'] = data['oauth_token']
+                fb_user['expires_in'] = data['expires']
+                fb_user['metadata_page'] = data['page']
+        return fb_user
 
     fb_user = {}
-    functions = [get_fb_user_client_side] #, get_fb_user_canvas]
+    functions = [get_fb_user_client_side, get_fb_user_canvas]
     for func in functions:
         fb_user = func(request)
         if fb_user:
