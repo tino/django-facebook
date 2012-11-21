@@ -83,10 +83,10 @@ window.fbAsyncInit = function() {
                signed_request: response.authResponse.signedRequest}
         );
       }
-      setCookie('djfb_access_token', response.authResponse.accessToken);
-      setCookie('djfb_expires_in', response.authResponse.expiresIn);
-      setCookie('djfb_signed_request', response.authResponse.signedRequest);
-      setCookie('djfb_user_id', response.authResponse.userID);
+      // setCookie('djfb_access_token', response.authResponse.accessToken);
+      // setCookie('djfb_expires_in', response.authResponse.expiresIn);
+      // setCookie('djfb_signed_request', response.authResponse.signedRequest);
+      // setCookie('djfb_user_id', response.authResponse.userID);
     } else {
       // On logout delete the djfb_ cookies
       setCookie('djfb_access_token', '');
