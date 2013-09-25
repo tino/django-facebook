@@ -14,7 +14,7 @@ import facebook
 from django_facebook.signals import facebook_user_created
 from django_facebook.utils import (get_signed_request_data, cache_access_token,
     del_cached_access_token, del_cached_fb_user_data)
-    
+
 auth = facebook.Auth(settings.FACEBOOK_APP_ID,
     settings.FACEBOOK_APP_SECRET, settings.FACEBOOK_REDIRECT_URI)
 
@@ -62,7 +62,7 @@ def get_fb_user_from_request(request, force_validate=False):
                 # ValueErrors are raise by facebook.Auth with malformed tokens
                 log.info('Something wrong with signed_request: %s' % e)
                 return None
-    
+
             if data and data.get('user_id'):
                 fb_user = data['user']
                 fb_user['method'] = 'canvas'
@@ -70,6 +70,7 @@ def get_fb_user_from_request(request, force_validate=False):
                 fb_user['access_token'] = data['oauth_token']
                 fb_user['expires_in'] = data['expires']
                 fb_user['metadata_page'] = data['page']
+                fb_user['app_data'] = data.get('app_data', '')
         return fb_user
 
     fb_user = {}
@@ -117,7 +118,7 @@ def logout(request):
     del_cached_fb_user_data(user_id)
     del_cached_access_token(user_id)
     django_auth.logout(request)
-    
+
     try:
         del request.COOKIES['djfb_access_token']
         del request.COOKIES['djfb_expires_in']
@@ -137,7 +138,7 @@ class FacebookModelBackend(ModelBackend):
         therefore only call this method with a request, upon which the
         ``djfb_signed_request`` cookie is used to validate the user, or with
         the ``signed_request`` itself.
-        
+
         If you pass in the ``signed_request``, you must also
         provide the ``access_token`` and ``expires_in`` kwargs.
 
@@ -183,7 +184,7 @@ class FacebookModelBackend(ModelBackend):
         usefull, like pre-fetching user data.
         """
         log.debug('FacebookModelBackend.get_user called')
-        user, created = User.objects.get_or_create(**{User.USERNAME_FIELD: user_id, 
+        user, created = User.objects.get_or_create(**{User.USERNAME_FIELD: user_id,
             'defaults': {'password': '!'}}) # also set unusable password
         if created:
             log.debug('New user created for facebook account %s' % user_id)
