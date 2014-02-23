@@ -13,28 +13,30 @@ FB_DATA_CACHE_KEY = '_fb_data_%s'
 
 
 def get_lazy_access_token(request):
+    if request.user.is_anonymous():
+        return None
     code, use_redirect_uri = get_code_from_request(request)
-    fb_id = request.user.username
-    
+    fb_id = request.user.get_username()
+
     def get_lazy():
         access_token = get_cached_access_token(fb_id)
-        
+
         if not access_token:
             try:
                 access_token, expires_in = get_fresh_access_token(code, use_redirect_uri)
                 cache_access_token(fb_id, access_token, expires_in)
             except facebook.AuthError:
                 raise
-                
+
         return access_token
-        
+
     return SimpleLazyObject(get_lazy)
 
 
 def get_code_from_request(request):
     """
     Fetches the code from either the GET params or the signed_request cookie.
-    
+
     Returns the code and wether or not a redirect_uri should be used.
     """
     code = None
@@ -45,18 +47,18 @@ def get_code_from_request(request):
     elif 'code' in get_signed_request_data(request):
         code = get_signed_request_data(request)['code']
         use_redirect_uri = False
-    
+
     return code, use_redirect_uri
-    
-    
+
+
 def get_fresh_access_token(code, use_redirect_uri=True):
     """
     Get a fresh_access_token with the provided code. Raise a
     facebook.AuthError if we can't.
-    
+
     If the user is logged in through the client side, use_redirect_uri should
     be False.
-    
+
     Returns the access_token and the amount of seconds it expires in.
     """
     if not code:
@@ -129,8 +131,10 @@ def cache_fb_user_data(user_id, data, expires_in=None):
     else:
         cache.set(FB_DATA_CACHE_KEY % user_id, data, int(expires_in))
 
+
 def del_cached_fb_user_data(user_id):
     cache.delete(FB_DATA_CACHE_KEY % user_id)
+
 
 def get_cached_fb_user_data(user_id, default=None):
     return cache.get(FB_DATA_CACHE_KEY % user_id, default)

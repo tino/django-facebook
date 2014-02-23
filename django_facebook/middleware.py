@@ -1,7 +1,6 @@
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.contrib.auth import authenticate
-from django.contrib.auth import BACKEND_SESSION_KEY
 from django.core.cache import cache
 
 import logging
@@ -9,25 +8,26 @@ log = logging.getLogger('django_facebook.middleware')
 
 import facebook
 
-from django_facebook.auth import login, logout
-from django_facebook.utils import (get_lazy_access_token, is_fb_logged_in, 
-    FB_DATA_CACHE_KEY)
+from .auth import login, logout
+from .utils import get_lazy_access_token, is_fb_logged_in, FB_DATA_CACHE_KEY
 
 auth = facebook.Auth(settings.FACEBOOK_APP_ID,
     settings.FACEBOOK_APP_SECRET, settings.FACEBOOK_REDIRECT_URI)
 
+
 class FacebookAccessor(object):
-    """ Simple accessor object for the Facebook user. Non-existing properties 
-    will return None instead of raising a AttributeError."""
+    """
+    Simple accessor object for the Facebook user. Non-existing properties
+    will return None instead of raising a AttributeError.
+    """
 
     def __init__(self, request):
         if is_fb_logged_in(request):
-            self.user_id = request.user.username
+            self.user_id = request.user.get_username()
+            self.access_token = get_lazy_access_token(request)
+            self.auth = auth
+            self.graph = facebook.GraphAPI(self.access_token)
 
-        self.access_token = get_lazy_access_token(request)
-        self.auth = auth
-        self.graph = facebook.GraphAPI(self.access_token)
-        
     def __getattr__(self, name):
         return None
 
@@ -58,7 +58,7 @@ class FacebookLoginMiddleware(object):
             raise ImproperlyConfigured(
                 "The FacebookCookieLoginMiddleware requires the"
                 " authentication middleware to be installed. Edit your"
-                " MIDDLEWARE_CLASSES setting to insert"
+                " MIDDLEWARE_CLASSES setting and insert"
                 " 'django.contrib.auth.middleware.AuthenticationMiddleware'"
                 " before the FacebookLoginMiddleware class.")
 
@@ -85,7 +85,7 @@ class FacebookLogOutMiddleware(object):
             raise ImproperlyConfigured(
                 "The FacebookLogOutMiddleware requires the"
                 " authentication middleware to be installed. Edit your"
-                " MIDDLEWARE_CLASSES setting to insert"
+                " MIDDLEWARE_CLASSES setting and insert"
                 " 'django.contrib.auth.middleware.AuthenticationMiddleware'"
                 " before the FacebookLogOutMiddleware class.")
 
@@ -95,7 +95,7 @@ class FacebookLogOutMiddleware(object):
                 logout(request)
                 log.debug('User logged out, no djfb_access_token cookie found')
                 return
-              
+
             # Also logout if the user changes
             if not request.COOKIES.get('djfb_user_id') == request.user.username:
                 logout(request)
@@ -110,16 +110,16 @@ class FacebookHelperMiddleware(object):
 
     def process_request(self, request):
         request.facebook = FacebookAccessor(request)
-        
-        
+
+
 class FacebookCacheMiddleware(object):
     """
     This middleware loads tries to load user data from the cache. If found, it
     populates request.facebook with it.
-    
+
     This middleware MUST come after the FacebookHelperMiddleware!
     """
-    
+
     def process_request(self, request):
         if request.facebook.user_id:
             fb_data = cache.get(FB_DATA_CACHE_KEY % request.facebook.user_id)

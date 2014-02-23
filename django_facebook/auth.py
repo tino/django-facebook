@@ -14,7 +14,7 @@ import facebook
 from django_facebook.signals import facebook_user_created
 from django_facebook.utils import (get_signed_request_data, cache_access_token,
     del_cached_access_token, del_cached_fb_user_data)
-    
+
 auth = facebook.Auth(settings.FACEBOOK_APP_ID,
     settings.FACEBOOK_APP_SECRET, settings.FACEBOOK_REDIRECT_URI)
 
@@ -44,14 +44,14 @@ def get_fb_user_from_request(request, force_validate=False):
         expires_in = request.COOKIES.get('djfb_expires_in')
 
         return dict(user_id=data['user_id'],
-                       access_token=access_token,
-                       expires_in=expires_in,
-                       method='cookie')
+                    access_token=access_token,
+                    expires_in=expires_in,
+                    method='cookie')
 
     def get_fb_user_canvas(request):
         """Attempt to find a user using a signed_request (canvas)."""
-        # TODO Fix get_fb_user_canvas method, there will not be any uid nor user_id in data
-        # See http://developers.facebook.com/docs/appsonfacebook/tutorial/#auth
+        # TODO Fix get_fb_user_canvas method, there will not be any uid nor user_id
+        # in data See http://developers.facebook.com/docs/appsonfacebook/tutorial/#auth
         # for the workings of oauth 2 canvas login
         fb_user = None
         if request.POST.get('signed_request'):
@@ -59,10 +59,10 @@ def get_fb_user_from_request(request, force_validate=False):
             try:
                 data = auth.parse_signed_request(signed_request)
             except ValueError as e:
-                # ValueErrors are raise by facebook.Auth with malformed tokens
+                # ValueErrors are raised by facebook.Auth with malformed tokens
                 log.info('Something wrong with signed_request: %s' % e)
                 return None
-    
+
             if data and data.get('user_id'):
                 fb_user = data['user']
                 fb_user['method'] = 'canvas'
@@ -117,7 +117,7 @@ def logout(request):
     del_cached_fb_user_data(user_id)
     del_cached_access_token(user_id)
     django_auth.logout(request)
-    
+
     try:
         del request.COOKIES['djfb_access_token']
         del request.COOKIES['djfb_expires_in']
@@ -129,6 +129,8 @@ def logout(request):
 
 class FacebookModelBackend(ModelBackend):
 
+    create_on_not_found = True
+
     def authenticate(self, request=None, signed_request=None, code=None,
             access_token=None, expires_in=None, force_validate=False):
         """
@@ -137,7 +139,7 @@ class FacebookModelBackend(ModelBackend):
         therefore only call this method with a request, upon which the
         ``djfb_signed_request`` cookie is used to validate the user, or with
         the ``signed_request`` itself.
-        
+
         If you pass in the ``signed_request``, you must also
         provide the ``access_token`` and ``expires_in`` kwargs.
 
@@ -183,10 +185,13 @@ class FacebookModelBackend(ModelBackend):
         usefull, like pre-fetching user data.
         """
         log.debug('FacebookModelBackend.get_user called')
-        user, created = User.objects.get_or_create(**{User.USERNAME_FIELD: user_id, 
-            'defaults': {'password': '!'}}) # also set unusable password
-        if created:
-            log.debug('New user created for facebook account %s' % user_id)
-            kwargs = dict(sender=self, user=user, access_token=access_token)
-            facebook_user_created.send_robust(**kwargs)
-        return user
+        if self.create_on_not_found:
+            user, created = User.objects.get_or_create(**{User.USERNAME_FIELD: user_id,
+                'defaults': {'password': '!'}})  # also set unusable password
+            if created:
+                log.debug('New user created for facebook account %s' % user_id)
+                kwargs = dict(sender=self, user=user, access_token=access_token)
+                facebook_user_created.send_robust(**kwargs)
+            return user
+        else:
+            return User.objects.filter(**{User.USERNAME_FIELD: user_id}).first()
