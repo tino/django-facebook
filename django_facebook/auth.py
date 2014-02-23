@@ -70,6 +70,7 @@ def get_fb_user_from_request(request, force_validate=False):
                 fb_user['access_token'] = data['oauth_token']
                 fb_user['expires_in'] = data['expires']
                 fb_user['metadata_page'] = data['page']
+                fb_user['app_data'] = data.get('app_data', '')
         return fb_user
 
     fb_user = {}
