@@ -66,27 +66,27 @@ window.fbAsyncInit = function() {
       document.cookie = "djfb_force_logout=";
     });
   }
-  
-  // Send a POST to the server notifying it somebody logged in, and pass the 
+
+  // Send a POST to the server notifying it somebody logged in, and pass the
   // access_token
-  // Also save the access_token to a cookie. In case the POST doesn't make it 
+  // Also save the access_token to a cookie. In case the POST doesn't make it
   // due to page reloading, the server will see the cookie.
   djfb = window.djfb || {}
   FB.Event.subscribe('auth.statusChange', function(response) {
     if (response.status == 'connected') {
       // Only send post if the server doesn't have this user logged in
       if (djfb.user_id != response.authResponse.userID) {
-        $.post('{% url "djfb_clientside_login" %}', 
+        $.post('{% url "djfb_clientside_login" %}',
               {user_id: response.authResponse.userID,
                access_token: response.authResponse.accessToken,
                expires_in: response.authResponse.expiresIn,
                signed_request: response.authResponse.signedRequest}
         );
       }
-      // setCookie('djfb_access_token', response.authResponse.accessToken);
-      // setCookie('djfb_expires_in', response.authResponse.expiresIn);
-      // setCookie('djfb_signed_request', response.authResponse.signedRequest);
-      // setCookie('djfb_user_id', response.authResponse.userID);
+      setCookie('djfb_access_token', response.authResponse.accessToken);
+      setCookie('djfb_expires_in', response.authResponse.expiresIn);
+      setCookie('djfb_signed_request', response.authResponse.signedRequest);
+      setCookie('djfb_user_id', response.authResponse.userID);
     } else {
       // On logout delete the djfb_ cookies
       setCookie('djfb_access_token', '');

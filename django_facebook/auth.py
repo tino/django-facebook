@@ -63,14 +63,17 @@ def get_fb_user_from_request(request, force_validate=False):
                 log.info('Something wrong with signed_request: %s' % e)
                 return None
 
-            if data and data.get('user_id'):
-                fb_user = data['user']
-                fb_user['method'] = 'canvas'
-                fb_user['user_id'] = data['user_id']
-                fb_user['access_token'] = data['oauth_token']
-                fb_user['expires_in'] = data['expires']
-                fb_user['metadata_page'] = data['page']
-                fb_user['app_data'] = data.get('app_data', '')
+            try:
+                if data and data.get('user_id'):
+                    fb_user = data['user']
+                    fb_user['method'] = 'canvas'
+                    fb_user['user_id'] = data['user_id']
+                    fb_user['access_token'] = data['oauth_token']
+                    fb_user['expires_in'] = data['expires']
+                    fb_user['metadata_page'] = data['page']
+                    fb_user['app_data'] = data.get('app_data', '')
+            except KeyError:
+                return None
         return fb_user
 
     fb_user = {}
