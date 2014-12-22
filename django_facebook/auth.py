@@ -160,9 +160,9 @@ class FacebookModelBackend(ModelBackend):
                 user = self.get_user(auth_data['user_id'],
                                     request.COOKIES.get('djfb_access_token'))
 
-            cache_access_token(auth_data['user_id'],
-                               auth_data['access_token'],
-                               auth_data['expires_in'])
+                cache_access_token(auth_data['user_id'],
+                                   auth_data['access_token'],
+                                   auth_data['expires_in'])
 
         elif signed_request:
             if not access_token and expires_in:
