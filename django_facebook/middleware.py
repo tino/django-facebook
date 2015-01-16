@@ -22,10 +22,10 @@ class FacebookAccessor(object):
     """
 
     def __init__(self, request):
+        self.auth = auth
         if is_fb_logged_in(request):
             self.user_id = request.user.get_username()
             self.access_token = get_lazy_access_token(request)
-            self.auth = auth
             self.graph = facebook.GraphAPI(self.access_token)
 
     def __getattr__(self, name):
