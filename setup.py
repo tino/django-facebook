@@ -12,8 +12,8 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=[
-        'django>=1.2.7',
-        'facebook-sdk>=0.2.0,==dev',
+        'django>=1.5',
+        'facebook-sdk==0.4.0',
     ],
     dependency_links=[
         'https://github.com/pythonforfacebook/facebook-sdk/tarball/master#egg=facebook-sdk-dev',
