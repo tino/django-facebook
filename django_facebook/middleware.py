@@ -11,8 +11,9 @@ import facebook
 from .auth import login, logout
 from .utils import get_lazy_access_token, is_fb_logged_in, FB_DATA_CACHE_KEY
 
+version = getattr(settings, 'FACEBOOK_VERSION', '2.2')
 auth = facebook.Auth(settings.FACEBOOK_APP_ID,
-    settings.FACEBOOK_APP_SECRET, settings.FACEBOOK_REDIRECT_URI)
+    settings.FACEBOOK_APP_SECRET, settings.FACEBOOK_REDIRECT_URI, version)
 
 
 class FacebookAccessor(object):
