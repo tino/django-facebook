@@ -1,22 +1,20 @@
-from django.conf import settings
-from django.contrib import auth as django_auth
-from django.contrib.auth import get_user_model
-from django.contrib.auth.backends import ModelBackend
-from django.contrib.auth.signals import user_logged_in
-from django.contrib.auth import SESSION_KEY, BACKEND_SESSION_KEY
-User = get_user_model()
-
 import logging
-log = logging.getLogger('django_facebook.auth')
 
 import facebook
-
+from django.contrib import auth as django_auth
+from django.contrib.auth import BACKEND_SESSION_KEY, get_user_model, SESSION_KEY
+from django.contrib.auth.backends import ModelBackend
+from django.contrib.auth.signals import user_logged_in
 from django_facebook.signals import facebook_user_created
-from django_facebook.utils import (get_signed_request_data, cache_access_token,
-    del_cached_access_token, del_cached_fb_user_data)
+from django_facebook.utils import (cache_access_token, del_cached_access_token,
+                                   del_cached_fb_user_data,
+                                   get_signed_request_data)
 
-auth = facebook.Auth(settings.FACEBOOK_APP_ID,
-    settings.FACEBOOK_APP_SECRET, settings.FACEBOOK_REDIRECT_URI)
+import conf
+
+User = get_user_model()
+
+log = logging.getLogger('django_facebook.auth')
 
 
 def get_fb_user_from_request(request, force_validate=False):
@@ -57,7 +55,7 @@ def get_fb_user_from_request(request, force_validate=False):
         if request.POST.get('signed_request'):
             signed_request = request.POST['signed_request']
             try:
-                data = auth.parse_signed_request(signed_request)
+                data = conf.auth.parse_signed_request(signed_request)
             except ValueError as e:
                 # ValueErrors are raised by facebook.Auth with malformed tokens
                 log.info('Something wrong with signed_request: %s' % e)
@@ -168,11 +166,11 @@ class FacebookModelBackend(ModelBackend):
                                    auth_data['expires_in'])
 
         elif signed_request:
-            if not access_token and expires_in:
+            if not (access_token and expires_in):
                 raise TypeError('If you pass the signed_request, you also need'
                 ' to provide the access_token and expires_in kwargs.')
             try:
-                auth_data = auth.parse_signed_request(signed_request)
+                auth_data = conf.auth.parse_signed_request(signed_request)
             except facebook.AuthError:
                 return None
 
@@ -190,8 +188,9 @@ class FacebookModelBackend(ModelBackend):
         """
         log.debug('FacebookModelBackend.get_user called')
         if self.create_on_not_found:
-            user, created = User.objects.get_or_create(**{User.USERNAME_FIELD: user_id,
-                'defaults': {'password': '!'}})  # also set unusable password
+            user, created = User.objects.get_or_create(
+                **{User.USERNAME_FIELD: user_id,
+                   'defaults': {'password': '!'}})  # also set unusable password
             if created:
                 log.debug('New user created for facebook account %s' % user_id)
                 kwargs = dict(sender=self, user=user, access_token=access_token)

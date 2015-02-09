@@ -1,14 +1,16 @@
 from functools import update_wrapper, wraps
-from django.contrib.auth import REDIRECT_FIELD_NAME
-from django.http import (HttpResponse,
-                         HttpResponseRedirect,
-                         HttpResponseBadRequest)
-from django.utils.decorators import available_attrs
-from django.utils.http import urlquote
-from django.conf import settings
 
 import facebook
+from django.conf import settings
+from django.contrib.auth import REDIRECT_FIELD_NAME
+from django.http import (HttpResponse, HttpResponseBadRequest,
+                         HttpResponseRedirect)
+from django.utils.decorators import available_attrs
+from django.utils.http import urlquote
+
+import conf
 from utils import is_fb_logged_in
+
 
 def canvas_only(function=None):
     """
@@ -25,8 +27,7 @@ def canvas_only(function=None):
 
             # Parse the request and ensure it's valid
             signed_request = request.POST["signed_request"]
-            data = facebook.parse_signed_request(signed_request,
-                                                 settings.FACEBOOK_APP_SECRET)
+            data = conf.auth.parse_signed_request(signed_request)
             if data is False:
                 return HttpResponseBadRequest('<h1>400 Bad Request</h1>'
                                   '<p>Malformed <em>signed_request</em>.</p>')
@@ -34,9 +35,9 @@ def canvas_only(function=None):
             # If the user has not authorised redirect them
             if not data.get('uid'):
                 scope = getattr(settings, 'FACEBOOK_PERMS', None)
-                auth_url = facebook.auth_url(settings.FACEBOOK_APP_ID,
-                                             settings.FACEBOOK_CANVAS_PAGE,
-                                             scope)
+                auth_url = conf.auth.auth_url(conf.APP_ID,
+                                              conf.CANVAS_PAGE,
+                                              scope)
                 markup = ('<script type="text/javascript">'
                           'top.location.href="%s"</script>' % auth_url)
                 return HttpResponse(markup)

@@ -4,6 +4,8 @@ from django import template
 from django.conf import settings
 from django.core.urlresolvers import reverse, NoReverseMatch
 
+from django_facebook import conf
+
 register = template.Library()
 
 
@@ -26,7 +28,7 @@ class FacebookNode(template.Node):
     """ Allow code to be added inside the facebook asynchronous closure. """
     def __init__(self, nodelist):
         try:
-            app_id = settings.FACEBOOK_APP_ID
+            app_id = conf.APP_ID
         except AttributeError:
             raise template.TemplateSyntaxError, "%r tag requires " \
                 "FACEBOOK_APP_ID to be configured." \
@@ -65,6 +67,6 @@ def facebook_login_url(request, redirect_after=None):
             redirect_to += '?next=%s' % quote(redirect_after)
         else:
             redirect_to += '?next=%s' % quote(reverse(redirect_after))
-    return login_url % (settings.FACEBOOK_APP_ID,
+    return login_url % (conf.APP_ID,
                         facebook_perms(),
                         request.build_absolute_uri(redirect_to))

@@ -1,12 +1,9 @@
+import facebook
 from django.utils.functional import SimpleLazyObject
-from django.conf import settings
 from django.contrib.auth import BACKEND_SESSION_KEY
 from django.core.cache import cache
 
-import facebook
-
-auth = facebook.Auth(settings.FACEBOOK_APP_ID, settings.FACEBOOK_APP_SECRET,
-    settings.FACEBOOK_REDIRECT_URI)
+import conf
 
 FB_ACCESS_TOKEN_CACHE_KEY = '_fb_access_token_%s'
 FB_DATA_CACHE_KEY = '_fb_data_%s'
@@ -69,7 +66,7 @@ def get_fresh_access_token(code, use_redirect_uri=True):
         # freaking facebook doesn't want a redirect_uri is somebody is logged
         # in throught the client-side...
         kwargs = {'redirect_uri': ''} if not use_redirect_uri else {}
-        data = auth.get_access_token(code, **kwargs)
+        data = conf.auth.get_access_token(code, **kwargs)
     except facebook.AuthError:
         raise
 
@@ -83,7 +80,7 @@ def get_signed_request_data(request):
     """
     if not hasattr(request, '_fb_cookie_data'):
         try:
-            data = auth.parse_signed_request(
+            data = conf.auth.parse_signed_request(
                                     request.COOKIES['djfb_signed_request'])
         except (KeyError, ValueError, facebook.AuthError):
             data = {}

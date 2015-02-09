@@ -16,9 +16,6 @@ from .utils import cache_access_token, get_cached_access_token
 
 log = logging.getLogger('django_facebook.views')
 
-auth = facebook.Auth(settings.FACEBOOK_APP_ID,
-    settings.FACEBOOK_APP_SECRET, settings.FACEBOOK_REDIRECT_URI)
-
 
 def fb_server_login(request):
     """View that accepts the redirect from Facebook after the user signs in
@@ -49,20 +46,20 @@ def fb_server_login(request):
         log.error('Could not log into facebook because: %s' % e)
         # best we can do is redirect to login page again...
         return HttpResponseRedirect(next)
-    
+
     # Cache the access_token (normally autenticate does this)
     cache_access_token(fb_user['id'], access_token, expires_in)
-    
+
     user = FacebookModelBackend().get_user(fb_user['id'], access_token)
     user.backend = 'django_facebook.auth.FacebookModelBackend'
     login(request, user)
-    
+
     response = HttpResponseRedirect(next)
     # Set djfb_access_token and djfb_user_id, otherwise the user will be logged
     # out by our middleware
     response.set_cookie('djfb_access_token', access_token)
     response.set_cookie('djfb_user_id', fb_user['id'])
-    
+
     return response
 
 
@@ -73,7 +70,7 @@ def fb_client_login(request):
     """
     if request.method != "POST":
         return HttpResponseNotAllowed(['POST'])
-        
+
     # Try to bail early if the user_id's still match. This happens if the
     # window.djfb.user_id was not set properly. Do update the access_token though
     user_id = request.POST.get('user_id')

@@ -1,19 +1,16 @@
-from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
-from django.contrib.auth import authenticate
-from django.core.cache import cache
-
 import logging
-log = logging.getLogger('django_facebook.middleware')
 
 import facebook
+from django.conf import settings
+from django.contrib.auth import authenticate
+from django.core.cache import cache
+from django.core.exceptions import ImproperlyConfigured
 
+import conf
 from .auth import login, logout
-from .utils import get_lazy_access_token, is_fb_logged_in, FB_DATA_CACHE_KEY
+from .utils import FB_DATA_CACHE_KEY, get_lazy_access_token, is_fb_logged_in
 
-version = getattr(settings, 'FACEBOOK_VERSION', '2.2')
-auth = facebook.Auth(settings.FACEBOOK_APP_ID,
-    settings.FACEBOOK_APP_SECRET, settings.FACEBOOK_REDIRECT_URI, version)
+log = logging.getLogger('django_facebook.middleware')
 
 
 class FacebookAccessor(object):
@@ -23,7 +20,7 @@ class FacebookAccessor(object):
     """
 
     def __init__(self, request):
-        self.auth = auth
+        self.auth = conf.auth
         if is_fb_logged_in(request):
             self.user_id = request.user.get_username()
             self.access_token = get_lazy_access_token(request)
@@ -156,7 +153,7 @@ class FacebookDebugCanvasMiddleware(object):
     def process_request(self, request):
         cp = request.POST.copy()
         request.POST = cp
-        request.POST['signed_request'] = settings.FACEBOOK_DEBUG_SIGNEDREQ
+        request.POST['signed_request'] = conf.DEBUG_SIGNEDREQ
         return None
 
 
@@ -173,8 +170,8 @@ class FacebookDebugCookieMiddleware(object):
     """
 
     def process_request(self, request):
-        cookie_name = "fbs_" + settings.FACEBOOK_APP_ID
-        request.COOKIES[cookie_name] = settings.FACEBOOK_DEBUG_COOKIE
+        cookie_name = "fbs_" + conf.APP_ID
+        request.COOKIES[cookie_name] = conf.DEBUG_COOKIE
         return None
 
 
@@ -189,6 +186,6 @@ class FacebookDebugTokenMiddleware(object):
 
     def process_request(self, request):
         request.facebook = FacebookAccessor(request)
-        request.facebook.user_id = settings.FACEBOOK_DEBUG_UID
-        request.facebook.access_token = settings.FACEBOOK_DEBUG_TOKEN
+        request.facebook.user_id = conf.DEBUG_UID
+        request.facebook.access_token = conf.DEBUG_TOKEN
         return None
