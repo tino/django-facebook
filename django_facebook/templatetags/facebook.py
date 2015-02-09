@@ -9,7 +9,10 @@ register = template.Library()
 
 @register.inclusion_tag('tags/facebook_load.html')
 def facebook_load():
-    pass
+    # LANGUAGE_CODE defaults to en-us, which is also the default for FB
+    lang, country = settings.LANGUAGE_CODE.split('-')
+    fb_locale = "%s_%s" % (lang, country.upper())
+    return {'fb_locale': fb_locale}
 
 
 @register.tag
