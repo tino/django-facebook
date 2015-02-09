@@ -7,6 +7,7 @@ from django.http import (HttpResponse, HttpResponseRedirect,
     HttpResponseNotAllowed, HttpResponseBadRequest)
 from django.conf import settings
 from django.template.loader import render_to_string
+from django.views.decorators.csrf import csrf_exempt
 
 import facebook
 
@@ -63,6 +64,7 @@ def fb_server_login(request):
     return response
 
 
+@csrf_exempt
 def fb_client_login(request):
     """
     View for the POST request that is made by our javascript on login of the
