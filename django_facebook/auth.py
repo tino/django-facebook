@@ -89,6 +89,7 @@ class FacebookModelBackend(ModelBackend):
                     cache_access_token(auth_data['user_id'],
                                        access_token,
                                        expires_in)
+                    log.debug('access_token cached for user %s' % auth_data['user_id'])
 
         return user
 
