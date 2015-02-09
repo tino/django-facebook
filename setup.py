@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='django-facebook2',
-    version='0.3',
+    version='0.3.1',
     description='Facebook Authentication for Django',
     long_description=open('README.rst').read(),
     author='Tino de Bruijn',
@@ -13,7 +13,7 @@ setup(
     zip_safe=False,
     install_requires=[
         'django>=1.5',
-        'facebook2>=2.2',
+        'facebook2>=2.2.1',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',
