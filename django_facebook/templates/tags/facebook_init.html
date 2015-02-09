@@ -65,9 +65,9 @@ window.fbAsyncInit = function() {
 
   // Send a POST to the server notifying it somebody logged in, and pass the
   // access_token.
-  FB.Event.subscribe('auth.statusChange', function(response) {
+  FB.Event.subscribe('auth.login', function(response) {
     if (response.status == 'connected') {
-      // The signed request is in the fbsr_ cookie
+      // Notify the backend. The signed request is present in the fbsr_ cookie
       $.post('{% url "djfb_clientside_login" %}',
             {user_id: response.authResponse.userID,
              access_token: response.authResponse.accessToken,
