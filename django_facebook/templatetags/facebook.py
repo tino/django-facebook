@@ -31,7 +31,6 @@ class FacebookNode(template.Node):
             raise template.TemplateSyntaxError, "%r tag requires " \
                 "FACEBOOK_APP_ID to be configured." \
                 % token.contents.split()[0]
-        self.channel_url = getattr(settings, 'FACEBOOK_CHANNEL_URL', '')
         self.app_id = app_id
         self.nodelist = nodelist
 
@@ -41,7 +40,7 @@ class FacebookNode(template.Node):
         custom_context = context
         custom_context['code'] = code
         custom_context['app_id'] = self.app_id
-        custom_context['channel_url'] = self.channel_url
+        custom_context['version'] = getattr(settings, 'FACEBOOK_VERSION', '2.2')
         return t.render(custom_context)
 
 
@@ -54,12 +53,12 @@ def facebook_perms():
 def facebook_login_url(request, redirect_after=None):
     """
     Templatetag for rendering the login url for server-sided login.
-    
+
     An extra redirect url or urlname can be passed to be redirected to after
     server-side login has happened.
     """
     login_url = 'https://www.facebook.com/dialog/oauth?' + \
-         'client_id=%s&scope=%s&redirect_uri=%s'
+        'client_id=%s&scope=%s&redirect_uri=%s'
     redirect_to = reverse('djfb_login')
     if redirect_after:
         if redirect_after.startswith('/'):

@@ -60,12 +60,12 @@ window.djfb = {}
 {% endif %}
 
 window.fbAsyncInit = function() {
-  FB.init({appId: {{ app_id }},
+  FB.init({appId: '{{ app_id }}',
            status: true, // check login status
            cookie: true, // enable cookies to allow server to access session,
            xfbml: true, // enable XFBML and social plugins
            oauth: true, // enable OAuth 2.0
-           {% if channel_url %}channelUrl: "{{ channel_url }}" //custom channel{% endif %}
+           version: 'v{{ version }}'
   });
   if(getCookie('djfb_force_logout')) {
     FB.logout(function(response) {
