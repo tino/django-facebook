@@ -4,7 +4,7 @@ setup(
     name='django-facebook2',
     version='0.2',
     description='Facebook Authentication for Django',
-    long_description=open('README.md').read(),
+    long_description=open('README.rst').read(),
     author='Tino de Bruijn',
     author_email='tinodb@gmail.com',
     url='http://github.com/tino/django-facebook2',

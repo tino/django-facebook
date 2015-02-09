@@ -9,7 +9,7 @@ Requirements
 Some recent version of jQuery. TODO: Document where it's needed and give example
 
 Facebook Login
----------------
+--------------
 
 With Facebook there are two ways to log in
 (http://developers.facebook.com/docs/authentication/):
@@ -27,7 +27,7 @@ logged in on the client side. To overcome this, an ajax post request is made,
 as soon as somebody logs in on the client side, to notify the server and give
 it a change to log someone in.
 
-Installation:
+Installation
 ------------
 
 Simply add ``django_facebook`` to your INSTALLED_APPS and configure
@@ -47,7 +47,7 @@ the following settings:
     FACEBOOK_DEBUG_SIGNEDREQ = ''
 
 
-Templates:
+Templates
 ---------
 
 A few helpers for using the Javascript SDK can be enabled by adding
@@ -82,7 +82,7 @@ This module also provides all of the tools necessary for working with facebook
 on the backend:
 
 
-Middleware:
+Middleware
 ----------
 
 There are a couple of different middleware classes that can be enabled to do
@@ -127,7 +127,7 @@ force facebook graph availability.
 a page being loaded as a canvas inside Facebook.
 
 
-Authentication:
+Authentication
 --------------
 
 This provides seamless integration with the Django user system.
@@ -145,7 +145,7 @@ logins for users as well:
     'django.contrib.auth.backends.ModelBackend'
 
 
-Decorators and Mixins:
+Decorators and Mixins
 ---------------------
 
 ``@facebook_required`` is a decorator which ensures the user is currently
@@ -165,7 +165,7 @@ it will not work. For example:
         # rest of view...
 
 
-Signals:<a id="signals"/>
+Signals
 -------
 
 django_facebook defines a signal:
@@ -175,7 +175,7 @@ created user, and ``facebook`` the facebook helper object that you can use to
 interact with facebook (the ``FacebookHelperMiddleware`` needs to be
 installed for this, otherwise the ``facebook`` kwarg will be ``None``).
 
-Asynchronous:
+Asynchronous
 ------------
 
 It is advisable to handle connections with external api's asynchronous with
