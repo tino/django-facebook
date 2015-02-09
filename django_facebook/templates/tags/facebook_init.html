@@ -54,11 +54,6 @@ $.ajaxSetup({
     }
 });
 
-window.djfb = {}
-{% if request.facebook.user_id %}
-  window.djfb.user_id = '{{ request.facebook.user_id }}';
-{% endif %}
-
 window.fbAsyncInit = function() {
   FB.init({appId: '{{ app_id }}',
            status: true, // check login status
@@ -67,38 +62,17 @@ window.fbAsyncInit = function() {
            oauth: true, // enable OAuth 2.0
            version: 'v{{ version }}'
   });
-  if(getCookie('djfb_force_logout')) {
-    FB.logout(function(response) {
-      document.cookie = "djfb_force_logout=";
-    });
-  }
 
   // Send a POST to the server notifying it somebody logged in, and pass the
-  // access_token
-  // Also save the access_token to a cookie. In case the POST doesn't make it
-  // due to page reloading, the server will see the cookie.
-  djfb = window.djfb || {}
+  // access_token.
   FB.Event.subscribe('auth.statusChange', function(response) {
     if (response.status == 'connected') {
-      // Only send post if the server doesn't have this user logged in
-      if (djfb.user_id != response.authResponse.userID) {
-        $.post('{% url "djfb_clientside_login" %}',
-              {user_id: response.authResponse.userID,
-               access_token: response.authResponse.accessToken,
-               expires_in: response.authResponse.expiresIn,
-               signed_request: response.authResponse.signedRequest}
-        );
-      }
-      setCookie('djfb_access_token', response.authResponse.accessToken);
-      setCookie('djfb_expires_in', response.authResponse.expiresIn);
-      setCookie('djfb_signed_request', response.authResponse.signedRequest);
-      setCookie('djfb_user_id', response.authResponse.userID);
-    } else {
-      // On logout delete the djfb_ cookies
-      setCookie('djfb_access_token', '');
-      setCookie('djfb_expires_in', '');
-      setCookie('djfb_signed_request', '');
-      setCookie('djfb_user_id', '');
+      // The signed request is in the fbsr_ cookie
+      $.post('{% url "djfb_clientside_login" %}',
+            {user_id: response.authResponse.userID,
+             access_token: response.authResponse.accessToken,
+             expires_in: response.authResponse.expiresIn}
+      );
     }
   });
   {{ code|safe }}

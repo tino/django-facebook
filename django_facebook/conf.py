@@ -16,6 +16,7 @@ except AttributeError:
 VERSION = getattr(settings, 'FACEBOOK_VERSION', "2.2")
 
 auth = facebook.Auth(APP_ID, APP_SECRET, REDIRECT_URI, VERSION)
+COOKIE_NAME = 'fbsr_%s' % APP_ID
 CANVAS_PAGE = getattr(settings, 'FACEBOOK_CANVAS_PAGE', "")
 DEBUG_SIGNEDREQ = getattr(settings, 'FACEBOOK_DEBUG_SIGNEDREQ', "")
 DEBUG_COOKIE = getattr(settings, 'FACEBOOK_DEBUG_COOKIE', "")

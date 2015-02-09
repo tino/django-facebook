@@ -1,14 +1,15 @@
+import hashlib
 import logging
 
 import facebook
-from django.conf import settings
 from django.contrib.auth import authenticate
 from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured
 
 import conf
 from .auth import login, logout
-from .utils import FB_DATA_CACHE_KEY, get_lazy_access_token, is_fb_logged_in
+from .utils import (FB_DATA_CACHE_KEY, get_lazy_access_token,
+                    get_signed_request_data, is_fb_logged_in)
 
 log = logging.getLogger('django_facebook.middleware')
 
@@ -36,13 +37,8 @@ class FacebookLoginMiddleware(object):
     ``auth.FacebookModelBackend`` to ``AUTHENTICATION_BACKENDS`` for this to
     work.
 
-    If the djfb_ cookies are set on the client side by our javascript, we
-    want them to be automatically be logged in as that user. We rely on the
-    authentication backend to create the user if it does not exist.
-
-    If you do not want to persist the facebook login, also enable
-    FacebookLogOutMiddleware so that if they log out log out on the client-side
-    they will also be logged out in the backend.
+    Logging in works only if ``{cookie: true}`` is passed to ``FB.init`` (by
+    default when using the ``facebook_init`` template tag.
 
     We also allow people to log in with other backends, so we only log someone
     in if they are not already logged in.
@@ -60,7 +56,7 @@ class FacebookLoginMiddleware(object):
                 " 'django.contrib.auth.middleware.AuthenticationMiddleware'"
                 " before the FacebookLoginMiddleware class.")
 
-        if request.user.is_anonymous():
+        if request.user.is_anonymous() and conf.COOKIE_NAME in request.COOKIES:
             user = authenticate(request=request,
                                 force_validate=self.force_validate)
             if user:
@@ -70,7 +66,7 @@ class FacebookLoginMiddleware(object):
 class FacebookLogOutMiddleware(object):
     """
     When a user logs out of facebook (on our page!), we won't get notified,
-    but the djfb_ cookies wil be cleared. So this middleware checks if that
+    but the fbsr_ cookies wil be cleared. So this middleware checks if that
     cookie is still present, and if not, logs the user out.
 
     This works only if the user is logged in with the
@@ -89,13 +85,14 @@ class FacebookLogOutMiddleware(object):
 
         if is_fb_logged_in(request):
 
-            if not request.COOKIES.get('djfb_access_token'):
+            if not request.COOKIES.get(conf.COOKIE_NAME):
                 logout(request)
-                log.debug('User logged out, no djfb_access_token cookie found')
+                log.debug('User logged out, no fbsr_ cookie found')
                 return
 
-            # Also logout if the user changes
-            if not request.COOKIES.get('djfb_user_id') == request.user.username:
+            data = get_signed_request_data(request)
+            if data and data['user_id'] != request.user.username:
+                # Also logout if the fb session changes
                 logout(request)
                 log.debug('User logged out. User_id on server differs from client side')
 
@@ -170,8 +167,7 @@ class FacebookDebugCookieMiddleware(object):
     """
 
     def process_request(self, request):
-        cookie_name = "fbs_" + conf.APP_ID
-        request.COOKIES[cookie_name] = conf.DEBUG_COOKIE
+        request.COOKIES[conf.COOKIE_NAME] = conf.DEBUG_COOKIE
         return None
 
 

@@ -80,8 +80,7 @@ def get_signed_request_data(request):
     """
     if not hasattr(request, '_fb_cookie_data'):
         try:
-            data = conf.auth.parse_signed_request(
-                                    request.COOKIES['djfb_signed_request'])
+            data = conf.auth.parse_signed_request(request.COOKIES[conf.COOKIE_NAME])
         except (KeyError, ValueError, facebook.AuthError):
             data = {}
         request._fb_cookie_data = data
