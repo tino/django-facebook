@@ -40,7 +40,7 @@ def fb_server_login(request):
     try:
         scheme = request.is_secure() and 'https' or 'http'
         redirect_uri = '%s://%s%s' % (scheme, request.get_host(), reverse('djfb_login'))
-        token = request.facebook.auth.get_access_token(code,
+        token = request.facebook.auth.get_access_token_from_code(code,
             redirect_uri=redirect_uri)
         access_token, expires_in = token['access_token'], token['expires']
         fb_user = facebook.GraphAPI(access_token).get_object('me')

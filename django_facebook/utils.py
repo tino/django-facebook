@@ -66,7 +66,7 @@ def get_fresh_access_token(code, use_redirect_uri=True):
         # freaking facebook doesn't want a redirect_uri is somebody is logged
         # in throught the client-side...
         kwargs = {'redirect_uri': ''} if not use_redirect_uri else {}
-        data = conf.auth.get_access_token(code, **kwargs)
+        data = conf.auth.get_access_token_from_code(code, **kwargs)
     except facebook.AuthError:
         raise
 
