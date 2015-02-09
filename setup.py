@@ -1,22 +1,19 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='django-facebook',
-    version='0.1',
-    description='Replace Django Authentication with Facebook',
+    name='django-facebook2',
+    version='0.2',
+    description='Facebook Authentication for Django',
     long_description=open('README.md').read(),
-    author='Aidan Lister',
-    author_email='aidan@php.net',
-    url='http://github.com/pythonforfacebook/django-facebook',
+    author='Tino de Bruijn',
+    author_email='tinodb@gmail.com',
+    url='http://github.com/tino/django-facebook2',
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
     install_requires=[
         'django>=1.5',
-        'facebook-sdk==0.4.0',
-    ],
-    dependency_links=[
-        'https://github.com/pythonforfacebook/facebook-sdk/tarball/master#egg=facebook-sdk-dev',
+        'facebook2>=2.2',
     ],
     classifiers=[
         'Development Status :: 4 - Beta',

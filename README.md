@@ -37,9 +37,9 @@ the following settings:
     FACEBOOK_APP_SECRET = ''
     FACEBOOK_REDIRECT_URI = ''
 
-    # Optionally set default permissions to request, e.g: ['email', 'user_about_me']
+    # Optionally set default permissions to request, e.g: ['email', 'user_friends']
     FACEBOOK_PERMS = []
-    
+
     # And for local debugging, use one of the debug middlewares and set:
     FACEBOOK_DEBUG_TOKEN = ''
     FACEBOOK_DEBUG_UID = ''
@@ -61,7 +61,7 @@ this to your base template before other javascript that makes use of facebook:
 And this should be added just before your ``</html>`` tag:
 
     {% facebook_load %}
-    
+
 The ``facebook_load`` template tag inserts the code required to
 asynchronously load the facebook javascript SDK. The ``facebook_init``
 tag calls ``FB.init`` with your configured application settings. It is
@@ -97,9 +97,9 @@ work, you need to add ``'django_facebook.auth.FacebookModelBackend'`` to your
 As a helper, there is ``FacebookHelperMiddleware``, that sets a ``facebook``
 object on the request, containing:
 
-- ``user_id``: If the user is logged in, this will be the facebook user id 
-- ``access_token``: A lazy access_token 
-- ``auth``: An instantiation of ``facebook.Auth``, an object to do 
+- ``user_id``: If the user is logged in, this will be the facebook user id
+- ``access_token``: A lazy access_token
+- ``auth``: An instantiation of ``facebook.Auth``, an object to do
   authentication stuff with, like getting a new access_token
 - ``graph``: An instantiation of ``facebook.GraphAPI``.
 
@@ -138,7 +138,7 @@ only ensures a user exists within our database. If a user doesn't exist, it
 wil be created, and the [django_facebook.auth.facebook_user_created](#signals)
 signal will be fired. Connect to this signal to populate profile data for
 example.
-  
+
 Don't forget to include the default backend if you want to use standard
 logins for users as well:
 
@@ -192,3 +192,8 @@ possible.
 
 The access_token is stored in the users session, so django's SessionMiddleware
 needs to be installed.
+
+Original Author
+---------------
+
+This app was originally forked from Aidan Lister's http://github.com/pythonforfacebook/django-facebook and changed heavily. I therefore decided to release it as a new app (under the same license).
