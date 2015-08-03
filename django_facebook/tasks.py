@@ -41,5 +41,5 @@ def get_friends_for_user(self, fb_id, callback, next_uri=None):
         raise self.retry(exc=exc)
 
     subtask(callback).delay(data['data'])
-    if data['paging'].get('next'):
+    if 'paging' in data and data['paging'].get('next'):
         self.delay(fb_id, callback, next_uri=data['paging']['next'])
